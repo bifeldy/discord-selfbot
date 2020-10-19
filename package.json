@@ -1,0 +1,24 @@
+{
+  "name": "discord-selfbot-embed-quote",
+  "version": "1.0.0",
+  "description": "Just For Experiment, Embed Quote",
+  "main": "index.js",
+  "homepage": "https://github.com/bifeldy/discord-selfbot-embed-quote",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bifeldy/discord-selfbot-embed-quote"
+  },
+  "keywords": [
+    "discord",
+    "selfbot",
+    "quotebot"
+  ],
+  "author": "Bifeldy",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^11.0.0"
+  }
+}
