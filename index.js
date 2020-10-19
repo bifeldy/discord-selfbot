@@ -1,9 +1,17 @@
+const readline = require("readline");
 const { Client, RichEmbed, TextChannel } = require('discord.js');
 
 const client = new Client();
 
 // Go To Discord, Open DevTools (Ctrl + Shift + I), Under `Application` -> `Local Storage` -> `token`
-const DISCORD_LOGIN_TOKEN = "COPY_PASTE_YOUR_LOGIN_AUTH_TOKEN_HERE";
+// Put Your Token Here As String Into `DISCORD_LOGIN_TOKEN` Variable
+// Example let DISCORD_LOGIN_TOKEN = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+let DISCORD_LOGIN_TOKEN = null;
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
 client.on("ready", () => {
   console.log(`✨ Client Logged In As :: ${client.user.username}#${client.user.discriminator}`);
@@ -45,4 +53,15 @@ function embedQuote(MessageUrl, channel, quotedMessage, textReply) {
   }
 }
 
-client.login(DISCORD_LOGIN_TOKEN);
+function start() {
+  client.login(DISCORD_LOGIN_TOKEN);
+}
+
+if (!DISCORD_LOGIN_TOKEN) {
+  rl.question('🏹 Input User Token :: ', (token) => {
+    DISCORD_LOGIN_TOKEN = token;
+    start();
+  });
+} else {
+  start();
+}
