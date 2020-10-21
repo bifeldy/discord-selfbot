@@ -24,7 +24,12 @@ client.on("message", async message => {
     // Example :: Use `!quote <discord_msg_url> <ReplayMsgThat CanAlsoHave SpaceCharacter AndThisIsNotRequired>`
     // !quote https://discord.com/channels/281068107974443009/281068107974443009/767639372023201792 Reply Message Text Here
     if (message.content.startsWith('!quote') && message.author.id === client.user.id) {
-      const captureRegex = /!quote (https:\/\/discord.com\/channels\/([0-9]+)\/([0-9]+)\/([0-9]+))(.*$)/gi;
+      let captureRegex = null;
+      if (message.content.startsWith('!quote https://discordapp.com')) {
+        captureRegex = /!quote (https:\/\/discordapp.com\/channels\/([0-9]+)\/([0-9]+)\/([0-9]+))(.*$)/gi;
+      } else if (message.content.startsWith('!quote https://discord.com')) {
+        captureRegex = /!quote (https:\/\/discord.com\/channels\/([0-9]+)\/([0-9]+)\/([0-9]+))(.*$)/gi;
+      }
       const captureResult = captureRegex.exec(message.content);
       const [rawInput, quotedMessageUrl, serverId, channelId, messageId, textReply] = captureResult;
       if (rawInput && quotedMessageUrl && serverId && channelId && messageId) {
