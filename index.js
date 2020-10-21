@@ -24,6 +24,7 @@ client.on("message", async message => {
     // Example :: Use `!quote <discord_msg_url> <ReplayMsgThat CanAlsoHave SpaceCharacter AndThisIsNotRequired>`
     // !quote https://discord.com/channels/281068107974443009/281068107974443009/767639372023201792 Reply Message Text Here
     if (message.content.startsWith('!quote') && message.author.id === client.user.id) {
+      const messageDelete = await message.delete();
       let captureRegex = null;
       if (message.content.startsWith('!quote https://discordapp.com')) {
         captureRegex = /!quote (https:\/\/discordapp.com\/channels\/([0-9]+)\/([0-9]+)\/([0-9]+))(.*$)/gi;
@@ -37,14 +38,27 @@ client.on("message", async message => {
         const quotedChannel = await quotedServer.channels.get(channelId);
         const textChannel = new TextChannel(quotedServer, quotedChannel);
         const quotedMessage = await textChannel.fetchMessage(messageId);
-        const messageEmbed = new RichEmbed()
-          .setColor(quotedMessage.member.displayColor)
-          .setAuthor(quotedMessage.author.username, quotedMessage.author.avatarURL, quotedMessageUrl)
-          .setDescription(quotedMessage.content)
-          .setTimestamp(quotedMessage.createdTimestamp)
-          .setFooter(`#${quotedMessage.channel.name} @ ${quotedMessage.channel.guild.name}`);
+        const messageEmbed = new RichEmbed();
+        messageEmbed.setColor(quotedMessage.member.displayColor);
+        messageEmbed.setAuthor(quotedMessage.author.username, quotedMessage.author.avatarURL, quotedMessageUrl);
+        messageEmbed.setDescription(quotedMessage.content);
+        if (quotedMessage.attachments) {
+          const attachment = quotedMessage.attachments.entries().next().value[1];
+          if (attachment.height && attachment.width) {
+            messageEmbed.setImage(attachment.url);
+          } else {
+            messageEmbed.addField(
+              attachment.filename,
+              `File Size :: ${attachment.filesize.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")} Bytes`
+            );
+          }
+        }
+        messageEmbed.setTimestamp(quotedMessage.createdTimestamp);
+        messageEmbed.setFooter(
+          `${quotedMessage.channel.guild.name} in #${quotedMessage.channel.name}`,
+          `https://cdn.discordapp.com/icons/${quotedMessage.channel.guild.id}/${quotedMessage.channel.guild.icon}`
+        );
         const messageSend = await message.channel.send(textReply, messageEmbed);
-        const messageDelete = await message.delete();
       }
     }
 
