@@ -24,7 +24,7 @@ client.on("message", async message => {
     // Example :: Use `!quote <discord_msg_url> <ReplayMsgThat CanAlsoHave SpaceCharacter AndThisIsNotRequired>`
     // !quote https://discord.com/channels/281068107974443009/281068107974443009/767639372023201792 Reply Message Text Here
     if (message.content.startsWith('!quote') && message.author.id === client.user.id) {
-      const messageDelete = await message.delete();
+      const _ = await message.delete();
       let captureRegex = null;
       if (message.content.startsWith('!quote https://discordapp.com')) {
         captureRegex = /!quote (https:\/\/discordapp.com\/channels\/([0-9]+)\/([0-9]+)\/([0-9]+))(.*$)/gi;
@@ -43,14 +43,17 @@ client.on("message", async message => {
         messageEmbed.setAuthor(quotedMessage.author.username, quotedMessage.author.avatarURL, quotedMessageUrl);
         messageEmbed.setDescription(quotedMessage.content);
         if (quotedMessage.attachments) {
-          const attachment = quotedMessage.attachments.entries().next().value[1];
-          if (attachment.height && attachment.width) {
-            messageEmbed.setImage(attachment.url);
-          } else {
-            messageEmbed.addField(
-              attachment.filename,
-              `File Size :: ${attachment.filesize.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")} Bytes`
-            );
+          const attachment = quotedMessage.attachments.entries().next().value;
+          if (attachment) {
+            const [_, attachmentContent] = attachment;
+            if (attachmentContent.height && attachmentContent.width) {
+              messageEmbed.setImage(attachmentContent.url);
+            } else {
+              messageEmbed.addField(
+                attachmentContent.filename,
+                `File Size :: ${attachmentContent.filesize.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")} Bytes`
+              );
+            }
           }
         }
         messageEmbed.setTimestamp(quotedMessage.createdTimestamp);
@@ -58,7 +61,7 @@ client.on("message", async message => {
           `${quotedMessage.channel.guild.name} in #${quotedMessage.channel.name}`,
           `https://cdn.discordapp.com/icons/${quotedMessage.channel.guild.id}/${quotedMessage.channel.guild.icon}`
         );
-        const messageSend = await message.channel.send(textReply, messageEmbed);
+        const _ = await message.channel.send(textReply, messageEmbed);
       }
     }
 
