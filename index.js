@@ -31,14 +31,53 @@ function shuffleArray(array) {
   return array;
 }
 
+// Bot Discriminator Farmer
+async function changeDiscrim(message) {
+  const currentDiscrim = client.user.discriminator;
+  const check = /^(\d)(?!\1+$)\d{11}$/;
+  const targetDiscrim = message.content.split(' ')[1];
+  if(!(
+    currentDiscrim.startsWith('000') ||
+    currentDiscrim.endsWith('000') ||
+    currentDiscrim == targetDiscrim ||
+    check.test(currentDiscrim)
+  )) {
+    const guilds =  client.guilds.array();
+    for (let guild of guilds) {
+      console.log(`[+] Guild ${guild.id}`);
+      try {
+        guild = await (await guild.fetch()).fetchMembers();
+        const members = guild.members.array();
+        for(const member of members) {
+          console.log(`    [-] ${member.user.username}#${member.user.discriminator}`);
+          if(
+            member.user.discriminator == currentDiscrim &&
+            member.user.username !== client.user.username
+          ) {
+            console.log(`[=] ${member.user.username}#${member.user.discriminator}`);
+            const _ = client.user.setUsername(member.user.username);
+            break;
+          }
+        }
+        if (currentDiscrim != client.user.discriminator) {
+          const _ = await message.channel.send(`[🎶 New Id] ${client.user.username}#${client.user.discriminator}`);
+          break;
+        }
+      } catch (err) {
+        const _ = await message.channel.send(err.toString());
+      }
+    };
+  }
+}
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-client.on("ready", () => {
-  console.log(`✨ User Logged In As :: ${client.user.username}#${client.user.discriminator}`);
-  console.log(`🎉 Discord API & Token :: ${version} :: ${client.token}`);
+client.on("ready", async () => {
+  console.log(`[✨ User Logged In] ${client.user.username}#${client.user.discriminator}`);
+  console.log(`[🎉 Discord API & Token] ${version} :: ${client.token}`);
 });
 
 client.on("message", async message => {
@@ -56,16 +95,17 @@ client.on("message", async message => {
         message.content.includes(`<@!${client.user.id}>`)
       ) && message.author.id !== client.user.id
     ) {
-      if (message.content.length === `<@${client.user.id}>`.length || message.content.length === `<@!${client.user.id}>`.length) {
-        const _ = await message.channel.send(emojiPing[Math.floor(Math.random() * emojiPing.length)]);
-      } else {
-        const _ = await message.channel.send(shuffleArray(emojiPing).join(' '));
-      }
+      const _ = await message.channel.send(emojiPing[Math.floor(Math.random() * emojiPing.length)]);
+    }
+
+    // Change Bot Discriminator
+    else if (message.content.startsWith('!change-discrim ') && message.author.id === client.user.id) {
+      changeDiscrim(message);
     }
 
     // Example :: Use `!quote <discord_msg_url> <ReplayMsgThat CanAlsoHave SpaceCharacter AndThisIsNotRequired>`
     // !quote https://discord.com/channels/281068107974443009/281068107974443009/767639372023201792 Reply Message Text Here
-    else if (message.content.startsWith('!quote') && message.author.id === client.user.id) {
+    else if (message.content.startsWith('!quote ') && message.author.id === client.user.id) {
       const _ = await message.delete();
       let captureRegex = null;
       if (message.content.startsWith('!quote https://discordapp.com')) {
@@ -112,7 +152,7 @@ client.on("message", async message => {
     // TODO :: You Can Add Other Self Bot Command Here
 
   } catch (err) {
-    console.log(err);
+    const _ = await message.channel.send(err.toString());
   }
 });
 
@@ -122,7 +162,7 @@ async function start() {
   } catch (err) {
     console.log(err);
     DISCORD_LOGIN_TOKEN = null;
-    rl.question('🏹 Input User Token :: ', (token) => {
+    rl.question('[🏹 Input User Token] ', (token) => {
       DISCORD_LOGIN_TOKEN = token;
       start();
     });
