@@ -1,8 +1,8 @@
 module.exports = {
   apps: [{
-    name        : 'discord-selfbot-embed-quote',
+    name        : 'discord-selfbot',
     script      : 'index.js',
-    log         : 'discord-selfbot-embed-quote.log',
+    log         : 'discord-selfbot.log',
     output      : 'NULL',
     error       : 'NULL',
     merge_logs  : true
