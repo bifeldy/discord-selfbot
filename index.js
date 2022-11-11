@@ -176,7 +176,12 @@ client.on("message", async message => {
     }
 
     // Test Ping
-    else if (message?.content && message.content == 'ping') {
+    else if (
+      message?.content && (
+        message.content == `<@${client.user.id}> ping` ||
+        message.content == `<@!${client.user.id}> ping`
+      )
+    ) {
       const latency = new Date().getTime() - new Date(message.createdTimestamp).getTime();
       const _ = await message.channel.send(`<@${message.author.id}> Pong ${latency} ms late!`);
     }
