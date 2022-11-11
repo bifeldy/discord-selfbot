@@ -45,7 +45,7 @@ client.on("message", async message => {
       const _ = await message.channel.send(`<@${message.author.id}> Pong ${latency} ms late!`);
     }
 
-    // Auto Reply If Someone Tag Me With Sticker / Emoji Ping Angry
+    // Self Bot Area
     else if (
       message?.content && (
         message.content.startsWith(`<@${client.user.id}>`) ||
