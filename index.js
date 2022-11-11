@@ -34,8 +34,19 @@ client.on("message", async message => {
       console.log(`${guildDmChannelName} [${message.author.username}#${message.author.discriminator}] ${message.content}`);
     }
 
-    // Auto Reply If Someone Tag Me With Sticker / Emoji Ping Angry
+    // Test Ping
     if (
+      message?.content && (
+        message.content == `<@${client.user.id}> ping` ||
+        message.content == `<@!${client.user.id}> ping`
+      )
+    ) {
+      const latency = new Date().getTime() - new Date(message.createdTimestamp).getTime();
+      const _ = await message.channel.send(`<@${message.author.id}> Pong ${latency} ms late!`);
+    }
+
+    // Auto Reply If Someone Tag Me With Sticker / Emoji Ping Angry
+    else if (
       message?.content && (
         message.content.startsWith(`<@${client.user.id}>`) ||
         message.content.startsWith(`<@!${client.user.id}>`)
@@ -173,17 +184,6 @@ client.on("message", async message => {
       ) && message.author.id !== client.user.id
     ) {
       const _ = await message.channel.send(emojiPing[Math.floor(Math.random() * emojiPing.length)]);
-    }
-
-    // Test Ping
-    else if (
-      message?.content && (
-        message.content == `<@${client.user.id}> ping` ||
-        message.content == `<@!${client.user.id}> ping`
-      )
-    ) {
-      const latency = new Date().getTime() - new Date(message.createdTimestamp).getTime();
-      const _ = await message.channel.send(`<@${message.author.id}> Pong ${latency} ms late!`);
     }
 
     // TODO :: You Can Add Other Public Bot Command Here
