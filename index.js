@@ -15,8 +15,6 @@ let DISCORD_LOGIN_TOKEN = process.env.DISCORD_TOKEN || jsonData.token || null;
 // Discord Emoji Ping / Tag
 const emojiPing = jsonData.ping || [];
 
-let updateStatus = null;
-
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
@@ -25,30 +23,6 @@ const rl = readline.createInterface({
 client.on("ready", async () => {
   console.log(`[✨ User Logged In] ${client.user.username}#${client.user.discriminator}`);
   console.log(`[🎉 Discord API & Token] ${version} :: ${client.token}`);
-  updateStatus = setInterval(() => {
-    if (!jsonData.statusUpdating) {
-      jsonData.statusUpdating = true;
-      try {
-        console.log(client.user.presence);
-        const currentActivity = client.user.presence.activities.find(a => a.type === 'CUSTOM_STATUS');
-        if (currentActivity) {
-          const fullText = currentActivity.name;
-          const firstLetter = fullText.substring(0, 1);
-          const startText = fullText.substring(1, fullText.length - 1);
-          const finalText = startText + firstLetter;
-          currentActivity.name = finalText;
-          const _ = client.user.setPresence({
-            status: 'idle',
-            activity: currentActivity
-          });
-        }
-      }
-      catch (e) {
-        console.error(e);
-      }
-      jsonData.statusUpdating = false;
-    }
-  }, 1234);
 });
 
 client.on("message", async message => {
