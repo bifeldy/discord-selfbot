@@ -21,6 +21,7 @@
   "author": "Bifeldy",
   "license": "MIT",
   "dependencies": {
-    "discord.js": "^11.6.4"
+    "discord.js": "^11.6.4",
+    "fastify": "^4.26.2"
   }
 }
