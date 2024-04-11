@@ -60,7 +60,6 @@ server.get('/', (req, res) => {
   const imgTagSmall = `
     <meta name="og:image" property="og:image" content="${icon_url}" />
     <meta name="twitter:image" property="twitter:image" content="${icon_url}" />
-    <meta name="twitter:card" property="twitter:card" content="summary" />
   ` + imgTag;
   const imgTagBig = `
     <meta name="og:image" property="og:image" content="${image_url}" />
