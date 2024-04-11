@@ -1,5 +1,6 @@
 const fs = require('fs');
 const readline = require('readline');
+const fetch = require('node-fetch');
 const { Client, RichEmbed, TextChannel, version } = require('discord.js');
 const { fastify } = require('fastify');
 
@@ -41,8 +42,37 @@ server.get('/', (req, res) => {
   const descriptions = req.query.descriptions || '「💤 Fansub ✨ ID 🌞」';
   const author_name = req.query.author_name || '「💤 Fansub ✨ ID 🌞」';
   const author_url = req.query.author_url || 'https://fansub.id';
-  const image_url = req.query.image_url || 'https://fansub.id/assets/img/favicon.png';
+  const image_url = req.query.image_url;
+  const video_url = req.query.video_url;
+  const mime = req.query.mime;
   const icon_url = req.query.icon_url || 'https://fansub.id/favicon.ico';
+  const imgTag = `
+    <meta name="og:image:width" property="og:video:width" content="1920" />
+    <meta name="og:image:height" property="og:video:height" content="1080" />
+    <meta name="twitter:image:width" property="twitter:image:width" content="1920" />
+    <meta name="twitter:image:height" property="twitter:image:height" content="1080" />
+  `;
+  const imgTagSmall = `
+    <meta name="og:image" property="og:image" content="${icon_url}" />
+    <meta name="twitter:image" property="twitter:image" content="${icon_url}" />
+    <meta name="twitter:card" property="twitter:card" content="summary" />
+  ` + imgTag;
+  const imgTagBig = `
+    <meta name="og:image" property="og:image" content="${image_url}" />
+    <meta name="twitter:image" property="twitter:image" content="${image_url}" />
+    <meta name="twitter:card" property="twitter:card" content="summary_large_image" />
+  ` + imgTag;
+  const vidTag = `
+    <meta name="og:video" property="og:video" content="${video_url}" />
+    <meta name="og:video:secure_url" property="og:video:secure_url" content="${video_url}" />
+    <meta name="og:video:width" property="og:video:width" content="1920" />
+    <meta name="og:video:height" property="og:video:height" content="1080" />
+    <meta name="og:video:type" property="og:video:type" content="${mime}" />
+    <meta name="twitter:player:stream" property="twitter:player:stream" content="${video_url}" />
+    <meta name="twitter:player:width" property="twitter:player:width" content="1920" />
+    <meta name="twitter:player:height" property="twitter:player:height" content="1080" />
+    <meta name="twitter:player:stream:content_type" property="twitter:player:stream:content_type" content="${mime}" />
+  `;
   res.code(200).header('Content-Type', 'text/html; charset=utf-8').send(`
     <!DOCTYPE html>
     <html lang="in">
@@ -80,16 +110,16 @@ server.get('/', (req, res) => {
         <meta name="og:site_name" property="og:site_name" content="${site_name}" />
         <meta name="og:title" property="og:title" content="${title}" />
         <meta name="og:description" property="og:description" content="${descriptions}" />
-        <meta name="og:image" property="og:image" content="${image_url?.trim() ? image_url : icon_url}" />
         <meta name="og:url" property="og:url" content="${site_url}" />
 
         <!-- Twitter Card -->
         <meta name="twitter:site" property="twitter:site" content="${site_name}">
         <meta name="twitter:title" property="twitter:title" content="${title}" />
         <meta name="twitter:description" property="twitter:description" content="${descriptions}" />
-        <meta name="twitter:image" property="twitter:image" content="${image_url?.trim() ? image_url : icon_url}" />
-        <meta name="twitter:card" property="twitter:card" content="${image_url?.trim() ? 'summary_large_image' : 'summary'}" />
         <meta name="twitter:creator" property="twitter:creator" content="${author_name}" />
+
+        ${image_url?.trim() ? imgTagBig : imgTagSmall}
+        ${video_url?.trim() ? vidTag : ''}
 
         <!-- Icon In The Highest Resolution We Need It For -->
         <link rel="icon" sizes="192x192" href="${icon_url}" />
@@ -246,6 +276,8 @@ client.on('message', async message => {
           }
           const author_url = `https://discord.com/users/${quotedMessage.author.id}`;
           let image_url = ' ';
+          let video_url = ' ';
+          let mime = ' ';
           const icon_url = quotedMessage.author.avatarURL;
           if (quotedMessage.attachments) {
             const attachment = quotedMessage.attachments.entries().next().value;
@@ -253,13 +285,20 @@ client.on('message', async message => {
               const [_, attachmentContent] = attachment;
               if (attachmentContent.height && attachmentContent.width) {
                 // messageEmbed.setImage(attachmentContent.url);
-                image_url = attachmentContent.url;
-              } else {
-                // const totalFileSize = attachmentContent.filesize.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ',');
-                // messageEmbed.addField(
-                //   attachmentContent.filename,
-                //   `File Size :: ${totalFileSize} Bytes`
-                // );
+                const url = new URL(attachmentContent.url).toString();
+                const res = await fetch(url, { method: 'HEAD' });
+                const mime = res.headers.get('Content-Type');
+                if (mime.startsWith('image/')) {
+                  image_url = url;
+                } else if (mime.startsWith('video/')) {
+                  video_url = url;
+                }
+              // } else {
+              //   const totalFileSize = attachmentContent.filesize.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ',');
+              //   messageEmbed.addField(
+              //     attachmentContent.filename,
+              //     `File Size :: ${totalFileSize} Bytes`
+              //   );
               }
             }
           }
@@ -272,6 +311,8 @@ client.on('message', async message => {
           urlParam += `&author_name=${encodeURIComponent(author_name)}`;
           urlParam += `&author_url=${encodeURIComponent(author_url)}`;
           urlParam += `&image_url=${encodeURIComponent(image_url)}`;
+          urlParam += `&video_url=${encodeURIComponent(video_url)}`;
+          urlParam += `&mime=${encodeURIComponent(mime)}`;
           urlParam += `&icon_url=${encodeURIComponent(icon_url)}`;
           urlParam += `&title=${encodeURIComponent(title)}`;
           urlParam += `&descriptions=${encodeURIComponent(descriptions)}`;
