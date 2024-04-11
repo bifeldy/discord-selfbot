@@ -285,7 +285,10 @@ client.on('message', async message => {
               const [_, attachmentContent] = attachment;
               if (attachmentContent.height && attachmentContent.width) {
                 // messageEmbed.setImage(attachmentContent.url);
-                const url = new URL(attachmentContent.url).toString();
+                let url = new URL(attachmentContent.url).toString();
+                if (url.endsWith('&') || url.endsWith('/') || url.endsWith('?')) {
+                  url = url.substring(0, url.length - 1);
+                }
                 const res = await fetch(url, { method: 'HEAD' });
                 const mime = res.headers.get('Content-Type');
                 if (mime.startsWith('image/')) {
