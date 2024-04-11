@@ -245,7 +245,10 @@ client.on('message', async message => {
           const site_url = quotedMessageUrl;
           const title = ' ';
           const descriptions = quotedMessage.content;
-          const author_name = `${quotedMessage.author.username}#${quotedMessage.author.discriminator}`;
+          let author_name = quotedMessage.author.nic.username;
+          if (Number(quotedMessage.author.discriminator)) {
+            author_name += `#${quotedMessage.author.discriminator}`;
+          }
           const author_url = `https://discord.com/users/${quotedMessage.author.id}`;
           let image_url = ' ';
           const icon_url = quotedMessage.author.avatarURL;
@@ -271,12 +274,12 @@ client.on('message', async message => {
           let urlParam = ``;
           urlParam += `site_name=${encodeURIComponent(site_name)}`;
           urlParam += `&site_url=${encodeURIComponent(site_url)}`;
-          urlParam += `&title=${encodeURIComponent(title)}`;
-          urlParam += `&descriptions=${encodeURIComponent(descriptions)}`;
           urlParam += `&author_name=${encodeURIComponent(author_name)}`;
           urlParam += `&author_url=${encodeURIComponent(author_url)}`;
           urlParam += `&image_url=${encodeURIComponent(image_url)}`;
           urlParam += `&icon_url=${encodeURIComponent(icon_url)}`;
+          urlParam += `&title=${encodeURIComponent(title)}`;
+          urlParam += `&descriptions=${encodeURIComponent(descriptions)}`;
           const _ = await message.channel.send(`${textReply} ||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​||||​|| _ _ _ _ _ _ ${current_domain}/?${urlParam}`);
         }
         const _ = await message.delete();
