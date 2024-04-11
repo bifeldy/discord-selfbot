@@ -80,7 +80,7 @@ server.get('/', (req, res) => {
         <meta name="og:site_name" property="og:site_name" content="${site_name}" />
         <meta name="og:title" property="og:title" content="${title}" />
         <meta name="og:description" property="og:description" content="${descriptions}" />
-        <meta name="og:image" property="og:image" content="${image_url}" />
+        <meta name="og:image" property="og:image" content="${image_url?.trim() ? image_url : icon_url}" />
         <meta name="og:url" property="og:url" content="${site_url}" />
 
         <!-- Twitter Card -->
