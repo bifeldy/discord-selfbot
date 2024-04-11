@@ -240,7 +240,7 @@ client.on('message', async message => {
           const site_url = quotedMessageUrl;
           const title = ' ';
           const descriptions = quotedMessage.content;
-          let author_name = quotedMessage.author.nic.username;
+          let author_name = quotedMessage.author.username;
           if (Number(quotedMessage.author.discriminator)) {
             author_name += `#${quotedMessage.author.discriminator}`;
           }
