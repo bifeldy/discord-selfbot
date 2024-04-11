@@ -241,7 +241,7 @@ client.on('message', async message => {
           //   quotedMessageUrl
           // );
           // messageEmbed.setDescription(quotedMessage.content);
-          const site_name = `#${quotedMessage.channel.name} @ ${quotedMessage.channel.guild.name} | ${new Date(quotedMessage.createdTimestamp).toUTCString()}`;
+          const site_name = `#${quotedMessage.channel.name} @ ${quotedMessage.channel.guild.name} ~ ${new Date(quotedMessage.createdTimestamp).toUTCString()}`;
           const site_url = quotedMessageUrl;
           const title = ' ';
           const descriptions = quotedMessage.content;
