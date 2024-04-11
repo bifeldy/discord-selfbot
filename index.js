@@ -47,13 +47,15 @@ server.get('/', (req, res) => {
   const author_url = req.query.author_url || 'https://fansub.id';
   const image_url = req.query.image_url;
   const video_url = req.query.video_url;
+  const width = req.query.width || '1920';
+  const height = req.query.height || '1080';
   const mime = req.query.mime;
   const icon_url = req.query.icon_url || 'https://fansub.id/favicon.ico';
   const imgTag = `
-    <meta name="og:image:width" property="og:video:width" content="1920" />
-    <meta name="og:image:height" property="og:video:height" content="1080" />
-    <meta name="twitter:image:width" property="twitter:image:width" content="1920" />
-    <meta name="twitter:image:height" property="twitter:image:height" content="1080" />
+    <meta name="og:image:width" property="og:video:width" content="${width}" />
+    <meta name="og:image:height" property="og:video:height" content="${height}" />
+    <meta name="twitter:image:width" property="twitter:image:width" content="${width}" />
+    <meta name="twitter:image:height" property="twitter:image:height" content="${height}" />
   `;
   const imgTagSmall = `
     <meta name="og:image" property="og:image" content="${icon_url}" />
@@ -68,14 +70,14 @@ server.get('/', (req, res) => {
   const vidTag = `
     <meta name="og:video" property="og:video" content="${video_url}" />
     <meta name="og:video:secure_url" property="og:video:secure_url" content="${video_url}" />
-    <meta name="og:video:width" property="og:video:width" content="1920" />
-    <meta name="og:video:height" property="og:video:height" content="1080" />
+    <meta name="og:video:width" property="og:video:width" content="${width}" />
+    <meta name="og:video:height" property="og:video:height" content="${height}" />
     <meta name="og:video:type" property="og:video:type" content="${mime}" />
     <meta property="twitter:card" content="player" />
     <meta name="twitter:player" property="twitter:player" content="${video_url}" />
     <meta name="twitter:player:stream" property="twitter:player:stream" content="${video_url}" />
-    <meta name="twitter:player:width" property="twitter:player:width" content="1920" />
-    <meta name="twitter:player:height" property="twitter:player:height" content="1080" />
+    <meta name="twitter:player:width" property="twitter:player:width" content="${width}" />
+    <meta name="twitter:player:height" property="twitter:player:height" content="${height}" />
     <meta name="twitter:player:stream:content_type" property="twitter:player:stream:content_type" content="${mime}" />
   `;
   let urlParam = ``;
@@ -282,6 +284,8 @@ client.on('message', async message => {
             author_name += `#${quotedMessage.author.discriminator}`;
           }
           const author_url = `https://discord.com/users/${quotedMessage.author.id}`;
+          let width = '1920';
+          let height = '1080';
           let image_url = ' ';
           let video_url = ' ';
           let mime = ' ';
@@ -290,7 +294,9 @@ client.on('message', async message => {
             const attachment = quotedMessage.attachments.entries().next().value;
             if (attachment) {
               const [_, attachmentContent] = attachment;
-              if (attachmentContent.height && attachmentContent.width) {
+              width = attachmentContent.width;
+              height = attachmentContent.height;
+              if (height && width) {
                 // messageEmbed.setImage(attachmentContent.url);
                 let url = new URL(attachmentContent.url).toString();
                 if (url.endsWith('&') || url.endsWith('/') || url.endsWith('?')) {
@@ -320,6 +326,8 @@ client.on('message', async message => {
           urlParam += `&site_url=${encodeURIComponent(site_url)}`;
           urlParam += `&author_name=${encodeURIComponent(author_name)}`;
           urlParam += `&author_url=${encodeURIComponent(author_url)}`;
+          urlParam += `&width=${encodeURIComponent(width)}`;
+          urlParam += `&height=${encodeURIComponent(height)}`;
           urlParam += `&image_url=${encodeURIComponent(image_url)}`;
           urlParam += `&video_url=${encodeURIComponent(video_url)}`;
           urlParam += `&mime=${encodeURIComponent(mime)}`;
