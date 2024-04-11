@@ -290,7 +290,7 @@ client.on('message', async message => {
                   url = url.substring(0, url.length - 1);
                 }
                 const res = await fetch(url, { method: 'HEAD' });
-                const mime = res.headers.get('Content-Type');
+                mime = res.headers.get('Content-Type');
                 if (mime.startsWith('image/')) {
                   image_url = url;
                 } else if (mime.startsWith('video/')) {
