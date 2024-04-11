@@ -31,7 +31,10 @@ server.get('/oembed', (req, res) => {
     author_name: req.query.author_name,
     author_url: req.query.author_url,
     provider_name: req.query.site_name,
-    provider_url: req.query.site_url
+    provider_url: req.query.site_url,
+    title: req.query.title,
+    type: 'link',
+    version: '1.0'
   });
 });
 
@@ -68,11 +71,19 @@ server.get('/', (req, res) => {
     <meta name="og:video:width" property="og:video:width" content="1920" />
     <meta name="og:video:height" property="og:video:height" content="1080" />
     <meta name="og:video:type" property="og:video:type" content="${mime}" />
+    <meta property="twitter:card" content="player" />
+    <meta name="twitter:player" property="twitter:player" content="${video_url}" />
     <meta name="twitter:player:stream" property="twitter:player:stream" content="${video_url}" />
     <meta name="twitter:player:width" property="twitter:player:width" content="1920" />
     <meta name="twitter:player:height" property="twitter:player:height" content="1080" />
     <meta name="twitter:player:stream:content_type" property="twitter:player:stream:content_type" content="${mime}" />
   `;
+  let urlParam = ``;
+  urlParam += `title=${encodeURIComponent(title)}`;
+  urlParam += `&author_name=${encodeURIComponent(author_name)}`;
+  urlParam += `&author_url=${encodeURIComponent(author_url)}`;
+  urlParam += `&site_name=${encodeURIComponent(site_name)}`;
+  urlParam += `&site_url=${encodeURIComponent(site_url)}`;
   res.code(200).header('Content-Type', 'text/html; charset=utf-8').send(`
     <!DOCTYPE html>
     <html lang="in">
@@ -93,12 +104,7 @@ server.get('/', (req, res) => {
         <link rel="shortcut icon" href="${icon_url}" />
         <link rel="icon" href="${icon_url}" />
         <link rel="canonical" href="${site_url}" />
-        <link
-          rel="alternate"
-          href="${current_domain}/oembed?author_name=${encodeURIComponent(author_name)}&author_url=${encodeURIComponent(author_url)}&site_name=${encodeURIComponent(site_name)}&site_url=${encodeURIComponent(site_url)}"
-          type="application/json+oembed"
-          title="${title}"
-        />
+        <link rel="alternate" href="${current_domain}/oembed?${urlParam}" type="application/json+oembed" title="${title}" />
 
         <!-- Search Engine Settings -->
         <meta name="description" property="description" content="${descriptions}" />
@@ -107,6 +113,7 @@ server.get('/', (req, res) => {
         <meta name="author" property="author" content="${author_name}" />
 
         <!-- Open Graph Protocol -->
+        <meta name="og:type" property="og:type" content="article">
         <meta name="og:site_name" property="og:site_name" content="${site_name}" />
         <meta name="og:title" property="og:title" content="${title}" />
         <meta name="og:description" property="og:description" content="${descriptions}" />
