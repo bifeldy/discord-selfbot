@@ -136,12 +136,7 @@ client.on('message', async message => {
     }
 
     // Self Bot Area
-    else if (
-      message?.content && (
-        message.content.startsWith(`<@${client.user.id}>`) ||
-        message.content.startsWith(`<@!${client.user.id}>`)
-      ) && message.author.id === client.user.id
-    ) {
+    else if (message?.content && message.author.id === client.user.id) {
 
       if (message.content.startsWith(`<@${client.user.id}>`)) {
         message.content = message.content.slice(`<@${client.user.id}>`.length).trim();
