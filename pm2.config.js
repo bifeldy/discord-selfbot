@@ -5,7 +5,7 @@ module.exports = {
     log: 'discord-selfbot.log',
     merge_logs: true,
     instances: 1,
-    exec_mode: "cluster",
+    exec_mode : "fork",
     cron_restart: '0 */6 * * *',
   }]
 };

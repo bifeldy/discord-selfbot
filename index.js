@@ -51,21 +51,15 @@ server.get('/', (req, res) => {
   const height = req.query.height || '1080';
   const mime = req.query.mime;
   const icon_url = req.query.icon_url || 'https://fansub.id/favicon.ico';
-  const imgTag = `
-    <meta name="og:image:width" property="og:video:width" content="${width}" />
-    <meta name="og:image:height" property="og:video:height" content="${height}" />
-    <meta name="twitter:image:width" property="twitter:image:width" content="${width}" />
-    <meta name="twitter:image:height" property="twitter:image:height" content="${height}" />
-  `;
   const imgTagSmall = `
     <meta name="og:image" property="og:image" content="${icon_url}" />
     <meta name="twitter:image" property="twitter:image" content="${icon_url}" />
-  ` + imgTag;
+  `;
   const imgTagBig = `
     <meta name="og:image" property="og:image" content="${image_url}" />
     <meta name="twitter:image" property="twitter:image" content="${image_url}" />
     <meta name="twitter:card" property="twitter:card" content="summary_large_image" />
-  ` + imgTag;
+  `;
   const vidTag = `
     <meta name="og:video" property="og:video" content="${video_url}" />
     <meta name="og:video:secure_url" property="og:video:secure_url" content="${video_url}" />
