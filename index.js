@@ -55,7 +55,7 @@ server.get('/', (req, res) => {
         <meta http-equiv="refresh" content="0; url=${site_url}" />
 
         <meta name="viewport" property="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" property="theme-color" content="#3f51b5" />
+        <meta name="theme-color" property="theme-color" content="#69f0ae" />
 
         <!-- Site Settings -->
         <title>${title}</title>
