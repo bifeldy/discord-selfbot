@@ -39,18 +39,18 @@ server.get('/oembed', (req, res) => {
 });
 
 server.get('/', (req, res) => {
-  const site_name = req.query.site_name || '「💤 Fansub ✨ ID 🌞」';
-  const site_url = req.query.site_url || 'https://fansub.id';
-  const title = req.query.title || '「💤 Fansub ✨ ID 🌞」';
-  const descriptions = req.query.descriptions || '「💤 Fansub ✨ ID 🌞」';
-  const author_name = req.query.author_name || '「💤 Fansub ✨ ID 🌞」';
-  const author_url = req.query.author_url || 'https://fansub.id';
+  const site_name = req.query.site_name;
+  const site_url = req.query.site_url;
+  const title = req.query.title;
+  const descriptions = req.query.descriptions;
+  const author_name = req.query.author_name;
+  const author_url = req.query.author_url;
   const image_url = req.query.image_url;
   const video_url = req.query.video_url;
-  const width = req.query.width || '1920';
-  const height = req.query.height || '1080';
+  const width = req.query.width;
+  const height = req.query.height;
   const mime = req.query.mime;
-  const icon_url = req.query.icon_url || 'https://fansub.id/favicon.ico';
+  const icon_url = req.query.icon_url;
   const imgTagSmall = `
     <meta name="og:image" property="og:image" content="${icon_url}" />
     <meta name="twitter:image" property="twitter:image" content="${icon_url}" />
