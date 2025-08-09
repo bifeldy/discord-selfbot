@@ -364,7 +364,7 @@ async function start() {
       start();
     });
   }
-  await server.listen({ port: process.env['PORT'] || 3001 }, (err, addr) => {
+  await server.listen({ host: '0.0.0.0', port: process.env['PORT'] || 3001 }, (err, addr) => {
     if (err) {
       console.error(err);
     }
