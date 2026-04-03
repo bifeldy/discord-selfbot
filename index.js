@@ -1,8 +1,11 @@
-const fs = require('fs');
-const readline = require('readline');
-const fetch = require('node-fetch');
-const { Client, RichEmbed, TextChannel, version } = require('discord.js');
+const fs = require('node:fs');
+const readline = require('node:readline');
+
+const { Client, TextChannel, version } = require('discord.js');
 const { fastify } = require('fastify');
+const fetch = require('node-fetch');
+
+const { addEditIrk, startCron } = require('./irk-absensi');
 
 const jsonConfig = 'config.json';
 const jsonFile = fs.readFileSync(jsonConfig, 'utf8');
@@ -19,7 +22,7 @@ let DISCORD_LOGIN_TOKEN = process.env.DISCORD_TOKEN || jsonData.token || null;
 const emojiPing = jsonData.ping || [];
 
 // Domain
-const current_domain = 'https://embed.fansub.id';
+const current_domain = jsonData.embedDomain;
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -167,6 +170,28 @@ client.on('message', async message => {
       const _ = await message.channel.send(`<@${message.author.id}> Pong ${latency} ms late!`);
     }
 
+    // My Private Tools :: IDM-IT-SD-03 :: 🚮︱bot-spam
+    else if (message.guild.id === jsonData.irk.guildId && message.channel.id === jsonData.irk.channelId) {
+
+      if (message.content.startsWith(`<@${client.user.id}>`)) {
+        message.content = message.content.slice(`<@${client.user.id}>`.length).trim();
+      }
+      else if (message.content.startsWith(`<@!${client.user.id}>`)) {
+        message.content = message.content.slice(`<@!${client.user.id}>`.length).trim();
+      }
+
+      if (message.content.startsWith('irk ')) {
+        const userNikPassword = message.content.slice(4).trim().split(' ').filter(d => d);
+        if (userNikPassword.length !== 2) {
+          const _ = await message.channel.send(`❗ Format Yang Dibutuhkan :: 'userNik<SPASI>password = 1234567890 MyPass123$%^`);
+        } else {
+          const result = await addEditIrk(message.author.id, userNikPassword[0], userNikPassword[1]);
+          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${userNikPassword[0]}`);
+        }
+        const _ = await message.delete();
+      }
+    }
+
     // Self Bot Area
     else if (message?.content && message.author.id === client.user.id) {
 
@@ -177,7 +202,7 @@ client.on('message', async message => {
         message.content = message.content.slice(`<@!${client.user.id}>`.length).trim();
       }
 
-      // Change Bot Discriminator
+      // Change Bot Logging
       if (message.content.startsWith('log')) {
         jsonData.logging = !jsonData.logging;
         const _ = await message.channel.send(`Logging :: ${jsonData.logging}`);
@@ -189,21 +214,21 @@ client.on('message', async message => {
         const currentDiscrim = client.user.discriminator;
         const check = /^(\d)(?!\1+$)\d{11}$/;
         const targetDiscrim = message.content.split(' ')[1];
-        if(!(
+        if (!(
           currentDiscrim.startsWith('000') ||
           currentDiscrim.endsWith('000') ||
           currentDiscrim == targetDiscrim ||
           check.test(currentDiscrim)
         )) {
-          const guilds =  client.guilds.array();
+          const guilds = client.guilds.array();
           for (let guild of guilds) {
             console.log(`[+] Guild ${guild.id}`);
             try {
               guild = await (await guild.fetch()).fetchMembers();
               const members = guild.members.array();
-              for(const member of members) {
+              for (const member of members) {
                 console.log(`    [-] ${member.user.username}#${member.user.discriminator}`);
-                if(
+                if (
                   member.user.discriminator == currentDiscrim &&
                   member.user.username !== client.user.username
                 ) {
@@ -302,12 +327,12 @@ client.on('message', async message => {
                 } else if (mime.startsWith('video/')) {
                   video_url = url;
                 }
-              // } else {
-              //   const totalFileSize = attachmentContent.filesize.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ',');
-              //   messageEmbed.addField(
-              //     attachmentContent.filename,
-              //     `File Size :: ${totalFileSize} Bytes`
-              //   );
+                // } else {
+                //   const totalFileSize = attachmentContent.filesize.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ',');
+                //   messageEmbed.addField(
+                //     attachmentContent.filename,
+                //     `File Size :: ${totalFileSize} Bytes`
+                //   );
               }
             }
           }
@@ -355,7 +380,17 @@ client.on('message', async message => {
 
 async function start() {
   try {
-    const login = await client.login(DISCORD_LOGIN_TOKEN);
+    const _ = await client.login(DISCORD_LOGIN_TOKEN);
+    await server.listen({ host: '0.0.0.0', port: process.env['PORT'] || 3001 }, (err, addr) => {
+      if (err) {
+        start();
+        console.error(err);
+      }
+      else {
+        startCron(client);
+        console.log(`[🌐 Server Listen] ${addr}`);
+      }
+    });
   } catch (err) {
     console.error(err);
     DISCORD_LOGIN_TOKEN = null;
@@ -364,12 +399,6 @@ async function start() {
       start();
     });
   }
-  await server.listen({ host: '0.0.0.0', port: process.env['PORT'] || 3001 }, (err, addr) => {
-    if (err) {
-      console.error(err);
-    }
-    console.log(`[🌐 Server Listen] ${addr}`);
-  });
 }
 
 start();
