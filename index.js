@@ -171,7 +171,11 @@ client.on('message', async message => {
     }
 
     // My Private Tools :: IDM-IT-SD-03 :: 🚮︱bot-spam
-    else if (message.guild.id === jsonData.irk.guildId && message.channel.id === jsonData.irk.channelId) {
+    else if (
+      message?.content &&
+      message.guild?.id === jsonData.irk.guildId &&
+      message.channel?.id === jsonData.irk.channelId
+    ) {
 
       if (message.content.startsWith(`<@${client.user.id}>`)) {
         message.content = message.content.slice(`<@${client.user.id}>`.length).trim();
