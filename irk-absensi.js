@@ -296,12 +296,18 @@ async function startIrk(discordClient = null, discordId, userNik, userPassword) 
 }
 
 async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamSore = null) {
-  if (!isValidHour(jamPagi) || !isValidHour(jamSore)) {
-    return false;
-  }
+  if (jamPagi && jamSore) {
+    if (!isValidHour(jamPagi) || !isValidHour(jamSore)) {
+      return false;
+    }
 
-  const pagi = parseFloat(jamPagi);
-  const sore = parseFloat(jamSore);
+    jamPagi = parseFloat(jamPagi);
+    jamSore = parseFloat(jamSore);
+  }
+  else {
+    jamPagi = null;
+    jamSore = null;
+  }
 
   const loginResponse = await login(userNik, userPassword);
   _tempResponseData = await loginResponse.json();
@@ -313,16 +319,16 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
   if (idx >= 0) {
     jsonData.irk.accounts[idx].authorId = discordId;
     jsonData.irk.accounts[idx].password = userPassword;
-    jsonData.irk.accounts[idx].targetPagi = pagi;
-    jsonData.irk.accounts[idx].targetSore = sore;
+    jsonData.irk.accounts[idx].targetPagi = jamPagi;
+    jsonData.irk.accounts[idx].targetSore = jamSore;
   }
   else {
     jsonData.irk.accounts.push({
       authorId: discordId,
       nik: userNik,
       password: userPassword,
-      targetPagi: pagi,
-      targetSore: sore
+      targetPagi: jamPagi,
+      targetSore: jamSore
     });
   }
 
