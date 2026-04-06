@@ -47,6 +47,11 @@ const delay = (ms) => new Promise(resolve => {
   }, ms);
 });
 
+const isValidHour = (val) => {
+  const num = parseFloat(val);
+  return typeof val === 'string' && !isNaN(num) && num >= 0 && num < 24;
+};
+
 function getCurrentJakartaDate() {
   const jakartaString = new Date().toLocaleString('en-US', {
     timeZone: 'Asia/Jakarta'
@@ -290,7 +295,14 @@ async function startIrk(discordClient = null, discordId, userNik, userPassword) 
   }
 }
 
-async function addEditIrk(discordId, userNik, userPassword) {
+async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamSore = null) {
+  if (!isValidHour(jamPagi) || !isValidHour(jamSore)) {
+    return false;
+  }
+
+  const pagi = parseFloat(jamPagi);
+  const sore = parseFloat(jamSore);
+
   const loginResponse = await login(userNik, userPassword);
   _tempResponseData = await loginResponse.json();
   if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
@@ -301,12 +313,16 @@ async function addEditIrk(discordId, userNik, userPassword) {
   if (idx >= 0) {
     jsonData.irk.accounts[idx].authorId = discordId;
     jsonData.irk.accounts[idx].password = userPassword;
+    jsonData.irk.accounts[idx].targetPagi = pagi;
+    jsonData.irk.accounts[idx].targetSore = sore;
   }
   else {
     jsonData.irk.accounts.push({
       authorId: discordId,
       nik: userNik,
-      password: userPassword
+      password: userPassword,
+      targetPagi: pagi,
+      targetSore: sore
     });
   }
 
@@ -323,8 +339,12 @@ async function runCronJobScheduler(discordClient = null) {
     let isNeedRunPulang = false;
 
     // Berangkat
-    const offsetBerangkat = current_date.getHours() >= 0 && current_date.getHours() <= 3;
-    if (!credential.berangkat && offsetBerangkat) {
+    const targetBerangkat = current_date.getHours() >= 0 && current_date.getHours() <= 3;
+    if (credential.targetPagi) {
+      targetBerangkat = current_date.getHours() === credential.targetPagi;
+    }
+
+    if (!credential.berangkat && targetBerangkat) {
       isNeedRunBerangkat = true;
     }
     else if (credential.berangkat) {
@@ -334,14 +354,18 @@ async function runCronJobScheduler(discordClient = null) {
       const lastRunDate = new Date(lastRunString);
       const lastRunFormatted = getFormattedDate(lastRunDate);
 
-      if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && offsetBerangkat) {
+      if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && targetBerangkat) {
         isNeedRunBerangkat = true;
       }
     }
 
     // Pulang
-    const offsetPulang = current_date.getHours() >= 21 && current_date.getHours() <= 23;
-    if (!credential.pulang && offsetPulang) {
+    const targetPulang = current_date.getHours() >= 21 && current_date.getHours() <= 23;
+    if (credential.targetSore) {
+      targetPulang = current_date.getHours() === credential.targetSore;
+    }
+
+    if (!credential.pulang && targetPulang) {
       isNeedRunPulang = true;
     }
     else if (credential.pulang) {
@@ -351,7 +375,7 @@ async function runCronJobScheduler(discordClient = null) {
       const lastRunDate = new Date(lastRunString);
       const lastRunFormatted = getFormattedDate(lastRunDate);
 
-      if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && offsetPulang) {
+      if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && targetPulang) {
         isNeedRunPulang = true;
       }
     }

@@ -185,12 +185,15 @@ client.on('message', async message => {
       }
 
       if (message.content.startsWith('irk ')) {
-        const userNikPassword = message.content.slice(4).trim().split(' ').filter(d => d);
-        if (userNikPassword.length !== 2) {
-          const _ = await message.channel.send(`❗ Format Yang Dibutuhkan :: 'userNik<SPASI>password = 1234567890 MyPass123$%^`);
+        const msgData = message.content.slice(4).trim().split(' ').filter(d => d);
+        if (msgData.length === 2) {
+          const result = await addEditIrk(message.author.id, msgData[0], msgData[1]);
+          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} :: Mungkin kredensial salah`);
+        } else if (msgData.length === 4) {
+          const result = await addEditIrk(message.author.id, msgData[0], msgData[1], msgData[2], msgData[3]);
+          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} (Target Pagi = ${msgData[2]}, Sore = ${msgData[3]}) :: Mungkin kredensial salah`);
         } else {
-          const result = await addEditIrk(message.author.id, userNikPassword[0], userNikPassword[1]);
-          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${userNikPassword[0]} :: Mungkin kredensial salah`);
+          const _ = await message.channel.send(`❗ Format Yang Dibutuhkan :: 'userNik<SPASI>password = 1234567890 MyPass123$%^`);
         }
         const _ = await message.delete();
       }
