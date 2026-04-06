@@ -339,7 +339,7 @@ async function runCronJobScheduler(discordClient = null) {
     let isNeedRunPulang = false;
 
     // Berangkat
-    const targetBerangkat = current_date.getHours() >= 0 && current_date.getHours() <= 3;
+    let targetBerangkat = current_date.getHours() >= 0 && current_date.getHours() <= 3;
     if (credential.targetPagi) {
       targetBerangkat = current_date.getHours() === credential.targetPagi;
     }
@@ -360,7 +360,7 @@ async function runCronJobScheduler(discordClient = null) {
     }
 
     // Pulang
-    const targetPulang = current_date.getHours() >= 21 && current_date.getHours() <= 23;
+    let targetPulang = current_date.getHours() >= 21 && current_date.getHours() <= 23;
     if (credential.targetSore) {
       targetPulang = current_date.getHours() === credential.targetSore;
     }

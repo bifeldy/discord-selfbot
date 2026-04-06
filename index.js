@@ -170,40 +170,6 @@ client.on('message', async message => {
       const _ = await message.channel.send(`<@${message.author.id}> Pong ${latency} ms late!`);
     }
 
-    // My Private Tools :: IDM-IT-SD-03 :: 🚮︱bot-spam
-    else if (
-      message?.content &&
-      message.guild?.id === jsonData.irk.guildId &&
-      message.channel?.id === jsonData.irk.channelId
-    ) {
-
-      if (message.content.startsWith(`<@${client.user.id}>`)) {
-        message.content = message.content.slice(`<@${client.user.id}>`.length).trim();
-      }
-      else if (message.content.startsWith(`<@!${client.user.id}>`)) {
-        message.content = message.content.slice(`<@!${client.user.id}>`.length).trim();
-      }
-
-      if (message.content.startsWith('irk ')) {
-        const msgData = message.content.slice(4).trim().split(' ').filter(d => d);
-        const _ = await message.delete();
-
-        if (msgData.length === 2) {
-          const result = await addEditIrk(message.author.id, msgData[0], msgData[1]);
-          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} :: Mungkin kredensial salah`);
-        } else if (msgData.length === 4) {
-          const result = await addEditIrk(message.author.id, msgData[0], msgData[1], msgData[2], msgData[3]);
-          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} (Target Pagi = ${msgData[2]}, Sore = ${msgData[3]}) :: Mungkin kredensial salah`);
-        } else {
-          const _ = await message.channel.send(`
-            ❗ Format Yang Dibutuhkan
-            'userNik<SPASI>password = 1234567890 MyPass123$%^
-            'userNik<SPASI>password<SPASI>targetPagi<SPASI>targetSore = 1234567890 MyPass123$%^ 7 19
-          `.replace(/\s+/g, ' '));
-        }
-      }
-    }
-
     // Self Bot Area
     else if (message?.content && message.author.id === client.user.id) {
 
@@ -380,7 +346,37 @@ client.on('message', async message => {
         message.content.includes(`<@!${client.user.id}>`)
       ) && message.author.id !== client.user.id
     ) {
-      const _ = await message.channel.send(emojiPing[Math.floor(Math.random() * emojiPing.length)]);
+      
+      if (message.content.startsWith(`<@${client.user.id}>`)) {
+        message.content = message.content.slice(`<@${client.user.id}>`.length).trim();
+      }
+      else if (message.content.startsWith(`<@!${client.user.id}>`)) {
+        message.content = message.content.slice(`<@!${client.user.id}>`.length).trim();
+      }
+
+      if (message.content.startsWith('irk ')) {
+        const msgData = message.content.slice(4).trim().split(' ').filter(d => d);
+        if (message.guild?.id === jsonData.irk.guildId) {
+          const _ = await message.delete();
+        }
+
+        if (msgData.length === 2) {
+          const result = await addEditIrk(message.author.id, msgData[0], msgData[1]);
+          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]}`);
+        } else if (msgData.length === 4) {
+          const result = await addEditIrk(message.author.id, msgData[0], msgData[1], msgData[2], msgData[3]);
+          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} (Target Pagi = ${msgData[2]}, Sore = ${msgData[3]})`);
+        } else {
+          const _ = await message.channel.send(`
+            ❗ Format Yang Dibutuhkan
+            'userNik<SPASI>password = 1234567890 MyPass123$%^
+            'userNik<SPASI>password<SPASI>targetPagi<SPASI>targetSore = 1234567890 MyPass123$%^ 7 19
+          `.replace(/\s+/g, ' '));
+        }
+      }
+      else {
+        const _ = await message.channel.send(emojiPing[Math.floor(Math.random() * emojiPing.length)]);
+      }
     }
 
     // TODO :: You Can Add Other Public Bot Command Here
