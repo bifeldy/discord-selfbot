@@ -323,7 +323,8 @@ async function runCronJobScheduler(discordClient = null) {
     let isNeedRunPulang = false;
 
     // Berangkat
-    if (!credential.berangkat && current_date.getHours() <= 7) {
+    const offsetBerangkat = current_date.getHours() >= 0 && current_date.getHours() <= 3;
+    if (!credential.berangkat && offsetBerangkat) {
       isNeedRunBerangkat = true;
     }
     else if (credential.berangkat) {
@@ -333,13 +334,14 @@ async function runCronJobScheduler(discordClient = null) {
       const lastRunDate = new Date(lastRunString);
       const lastRunFormatted = getFormattedDate(lastRunDate);
 
-      if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && current_date.getHours() <= 7) {
+      if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && offsetBerangkat) {
         isNeedRunBerangkat = true;
       }
     }
 
     // Pulang
-    if (!credential.pulang && current_date.getHours() >= 17) {
+    const offsetPulang = current_date.getHours() >= 21 && current_date.getHours() <= 23;
+    if (!credential.pulang && offsetPulang) {
       isNeedRunPulang = true;
     }
     else if (credential.pulang) {
@@ -349,7 +351,7 @@ async function runCronJobScheduler(discordClient = null) {
       const lastRunDate = new Date(lastRunString);
       const lastRunFormatted = getFormattedDate(lastRunDate);
 
-      if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && current_date.getHours() >= 19) {
+      if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && offsetPulang) {
         isNeedRunPulang = true;
       }
     }
