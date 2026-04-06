@@ -437,15 +437,20 @@ function startCron(discordClient = null) {
     }
   });
 
-  // Setiap Jam 0 Menit 3
-  cron.schedule('3 0 * * *', async () => {
+  // Setiap Jam Di Menit Ke-3 Hanya Dari Jam 0 Sampai 3 Pagi
+  cron.schedule('3 0-3 * * *', async () => {
     try {
       await delay(15 * 1000);
 
       const guild = discordClient.guilds.get(jsonData.irk.guildId);
       const channel = guild.channels.get(jsonData.irk.channelId);
 
-      const cutoff = new Date();
+      const current_date = new Date(); // +9 Jam Server
+      const cutoff = await getCurrentJakartaDate(); // +7 NTP -> Jakarta
+      if (current_date.getDate() !== cutoff.getDate()) {
+        return;
+      }
+
       cutoff.setDate(cutoff.getDate() - 1);
       cutoff.setHours(0, 0, 0, 0);
       const cutoffTimestamp = cutoff.getTime();
@@ -454,7 +459,10 @@ function startCron(discordClient = null) {
       let fetching = true;
 
       while (fetching) {
-        const options = { limit: 100 };
+        const options = {
+          limit: 100
+        };
+
         if (lastId) {
           options.before = lastId;
         }
