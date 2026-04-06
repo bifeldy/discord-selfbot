@@ -346,7 +346,7 @@ client.on('message', async message => {
         message.content.includes(`<@!${client.user.id}>`)
       ) && message.author.id !== client.user.id
     ) {
-      
+
       if (message.content.startsWith(`<@${client.user.id}>`)) {
         message.content = message.content.slice(`<@${client.user.id}>`.length).trim();
       }

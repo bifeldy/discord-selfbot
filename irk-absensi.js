@@ -418,6 +418,8 @@ async function runCronJobScheduler(discordClient = null) {
 }
 
 function startCron(discordClient = null) {
+  // Server Restart 6 Jam Sekali :: Hindari detik / menit ke-0
+
   // Setiap Jam Di Menit Ke-3
   cron.schedule('3 * * * *', async () => {
     if (isJobRunning) {
@@ -471,7 +473,7 @@ function startCron(discordClient = null) {
         for (const msg of toDelete.values()) {
           try {
             await msg.delete();
-            await new Promise(res => setTimeout(res, 1200)); // Delay sedikit lebih lama agar aman
+            await new Promise(res => setTimeout(res, 1234));
           }
           catch (err) {
             console.error('Delete history failed', err.message);
