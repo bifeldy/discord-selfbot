@@ -8,7 +8,7 @@ const fetch = require('node-fetch');
 const { addEditIrk, startCron } = require('./irk-absensi');
 
 const jsonConfig = 'config.json';
-const jsonFile = fs.readFileSync(jsonConfig, 'utf8');
+const jsonFile = fs.readFileSync(jsonConfig, { encoding: 'utf8' });
 const jsonData = JSON.parse(jsonFile);
 
 const server = new fastify({ logger: jsonData.logging });
@@ -190,7 +190,7 @@ client.on('message', async message => {
           const _ = await message.channel.send(`❗ Format Yang Dibutuhkan :: 'userNik<SPASI>password = 1234567890 MyPass123$%^`);
         } else {
           const result = await addEditIrk(message.author.id, userNikPassword[0], userNikPassword[1]);
-          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${userNikPassword[0]}`);
+          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${userNikPassword[0]} :: Mungkin kredensial salah`);
         }
         const _ = await message.delete();
       }

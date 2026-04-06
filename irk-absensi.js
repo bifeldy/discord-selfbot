@@ -13,8 +13,12 @@ const fetch = require('node-fetch');
  * 
  */
 
+let isJobRunning = false;
+
+// --
+
 const jsonConfig = 'config.json';
-const jsonFile = fs.readFileSync(jsonConfig, 'utf8');
+const jsonFile = fs.readFileSync(jsonConfig, { encoding: 'utf8' });
 const jsonData = JSON.parse(jsonFile);
 
 // -- --
@@ -35,6 +39,13 @@ const defaultHeader = {
 };
 
 // -- --
+
+const delay = (ms) => new Promise(resolve => {
+  const timer = setInterval(() => {
+    clearInterval(timer);
+    resolve();
+  }, ms);
+});
 
 function getCurrentJakartaDate() {
   const jakartaString = new Date().toLocaleString('en-US', {
@@ -280,6 +291,12 @@ async function startIrk(discordClient = null, discordId, userNik, userPassword) 
 }
 
 async function addEditIrk(discordId, userNik, userPassword) {
+  const loginResponse = await login(userNik, userPassword);
+  _tempResponseData = await loginResponse.json();
+  if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
+    return false;
+  }
+
   const idx = jsonData.irk.accounts.findIndex(d => d.nik === userNik);
   if (idx >= 0) {
     jsonData.irk.accounts[idx].authorId = discordId;
@@ -322,7 +339,7 @@ async function runCronJobScheduler(discordClient = null) {
     }
 
     // Pulang
-    if (!credential.pulang && current_date.getHours() >= 19) {
+    if (!credential.pulang && current_date.getHours() >= 17) {
       isNeedRunPulang = true;
     }
     else if (credential.pulang) {
@@ -355,8 +372,19 @@ async function runCronJobScheduler(discordClient = null) {
 }
 
 function startCron(discordClient = null) {
-  cron.schedule('* * * * *', () => {
-    runCronJobScheduler(discordClient);
+  cron.schedule('* * * * *', async () => {
+    if (isJobRunning) {
+      console.log('Previous job still running. Skipping this run.');
+      return;
+    }
+    try {
+      isJobRunning = true;
+      await delay(10 * 1000);
+      await runCronJobScheduler(discordClient);
+    }
+    finally {
+      isJobRunning = false;
+    }
   });
 }
 
