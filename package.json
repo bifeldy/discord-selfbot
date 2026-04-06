@@ -24,6 +24,7 @@
     "discord.js": "^11.6.4",
     "fastify": "^4.26.2",
     "node-cron": "^4.2.1",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "ntp-client": "^0.5.3"
   }
 }
