@@ -350,7 +350,9 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
   return true;
 }
 
-async function runCronJobScheduler(discordClient = null) {
+// --
+
+async function runCronJobSchedulerIrk(discordClient = null) {
   const current_date = await getCurrentJakartaDate();
   const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
 
@@ -417,11 +419,67 @@ async function runCronJobScheduler(discordClient = null) {
   }
 }
 
+async function runCronJobSchedulerCleanUp(discordClient = null) {
+  const guild = discordClient.guilds.get(jsonData.irk.guildId);
+  const channel = guild.channels.get(jsonData.irk.channelId);
+
+  const current_date = new Date(); // +9 Jam Server
+  const cutoff = await getCurrentJakartaDate(); // +7 NTP -> Jakarta
+  if (current_date.getDate() !== cutoff.getDate()) {
+    return;
+  }
+
+  cutoff.setDate(cutoff.getDate() - 1);
+  cutoff.setHours(0, 0, 0, 0);
+  const cutoffTimestamp = cutoff.getTime();
+
+  let lastId = null;
+  let fetching = true;
+
+  while (fetching) {
+    const options = {
+      limit: 100
+    };
+
+    if (lastId) {
+      options.before = lastId;
+    }
+
+    const messages = await channel.fetchMessages(options);
+    if (messages.size === 0) {
+      break;
+    }
+
+    const toDelete = messages.filter(msg =>
+      msg.createdTimestamp >= cutoffTimestamp &&
+      msg.author.id === discordClient.user.id &&
+      msg.content?.startsWith(`<@`)
+    );
+
+    for (const msg of toDelete.values()) {
+      try {
+        await msg.delete();
+        await new Promise(res => setTimeout(res, 1234));
+      }
+      catch (err) {
+        console.error('Delete history failed', err.message);
+      }
+    }
+
+    lastId = messages.last().id;
+    if (messages.last().createdTimestamp < cutoffTimestamp) {
+      fetching = false;
+    }
+  }
+}
+
+// --
+
 function startCron(discordClient = null) {
   // Server Restart 6 Jam Sekali :: Hindari detik / menit ke-0
 
-  // Setiap Jam Di Menit Ke-3
-  cron.schedule('3 * * * *', async () => {
+  // Setiap Jam Di Menit Ke-0
+  cron.schedule('0 * * * *', async () => {
     if (isJobRunning) {
       console.log('Previous job still running. Skipping this run.');
       return;
@@ -430,77 +488,24 @@ function startCron(discordClient = null) {
     try {
       isJobRunning = true;
       await delay(15 * 1000);
-      await runCronJobScheduler(discordClient);
+      await runCronJobSchedulerIrk(discordClient);
     }
     finally {
       isJobRunning = false;
     }
   });
 
-  // Setiap Jam Di Menit Ke-3 Hanya Dari Jam 0 Sampai 3 Pagi
-  cron.schedule('3 0-3 * * *', async () => {
+  // Setiap Jam Di Menit Ke-0 Hanya Dari Jam 0 Sampai 3 Pagi
+  cron.schedule('0 0-3 * * *', async () => {
     try {
       await delay(15 * 1000);
-
-      const guild = discordClient.guilds.get(jsonData.irk.guildId);
-      const channel = guild.channels.get(jsonData.irk.channelId);
-
-      const current_date = new Date(); // +9 Jam Server
-      const cutoff = await getCurrentJakartaDate(); // +7 NTP -> Jakarta
-      if (current_date.getDate() !== cutoff.getDate()) {
-        return;
-      }
-
-      cutoff.setDate(cutoff.getDate() - 1);
-      cutoff.setHours(0, 0, 0, 0);
-      const cutoffTimestamp = cutoff.getTime();
-
-      let lastId = null;
-      let fetching = true;
-
-      while (fetching) {
-        const options = {
-          limit: 100
-        };
-
-        if (lastId) {
-          options.before = lastId;
-        }
-
-        const messages = await channel.fetchMessages(options);
-        if (messages.size === 0) {
-          break;
-        }
-
-        const toDelete = messages.filter(msg =>
-          msg.createdTimestamp >= cutoffTimestamp &&
-          msg.author.id === client.user.id &&
-          msg.content?.startsWith(`<@`)
-        );
-
-        for (const msg of toDelete.values()) {
-          try {
-            await msg.delete();
-            await new Promise(res => setTimeout(res, 1234));
-          }
-          catch (err) {
-            console.error('Delete history failed', err.message);
-          }
-        }
-
-        lastId = messages.last().id;
-        if (messages.last().createdTimestamp < cutoffTimestamp) {
-          fetching = false;
-        }
-      }
+      await runCronJobSchedulerCleanUp();
     }
     catch (e) {
       console.error('Fetching history failed', e.message);
     }
   });
 }
-
-// runCronJobScheduler();
 
 module.exports = {
   addEditIrk,
