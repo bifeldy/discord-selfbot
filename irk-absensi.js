@@ -418,8 +418,8 @@ async function runCronJobScheduler(discordClient = null) {
 }
 
 function startCron(discordClient = null) {
-  // Setiap Jam Di Menit Ke-0
-  cron.schedule('0 * * * *', async () => {
+  // Setiap Jam Di Menit Ke-3
+  cron.schedule('3 * * * *', async () => {
     if (isJobRunning) {
       console.log('Previous job still running. Skipping this run.');
       return;
@@ -435,8 +435,8 @@ function startCron(discordClient = null) {
     }
   });
 
-  // Setiap Jam 0 Menit 0
-  cron.schedule('0 0 * * *', async () => {
+  // Setiap Jam 0 Menit 3
+  cron.schedule('3 0 * * *', async () => {
     try {
       await delay(15 * 1000);
 
