@@ -423,15 +423,19 @@ async function runCronJobSchedulerCleanUp(discordClient = null) {
   const guild = discordClient.guilds.get(jsonData.irk.guildId);
   const channel = guild.channels.get(jsonData.irk.channelId);
 
-  const current_date = new Date(); // +9 Jam Server
-  const cutoff = await getCurrentJakartaDate(); // +7 NTP -> Jakarta
-  if (current_date.getDate() !== cutoff.getDate()) {
-    return;
-  }
+  const nowJakarta = await getCurrentJakartaDate();
 
-  cutoff.setDate(cutoff.getDate() - 1);
-  cutoff.setHours(0, 0, 0, 0);
-  const cutoffTimestamp = cutoff.getTime();
+  // Start of Yesterday (00:00:00)
+  const startOfYesterday = new Date(nowJakarta);
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+  startOfYesterday.setHours(0, 0, 0, 0);
+  const startTs = startOfYesterday.getTime();
+
+  // End of Yesterday (23:59:59)
+  const endOfYesterday = new Date(nowJakarta);
+  endOfYesterday.setDate(endOfYesterday.getDate() - 1);
+  endOfYesterday.setHours(23, 59, 59, 999);
+  const endTs = endOfYesterday.getTime();
 
   let lastId = null;
   let fetching = true;
@@ -451,7 +455,8 @@ async function runCronJobSchedulerCleanUp(discordClient = null) {
     }
 
     const toDelete = messages.filter(msg =>
-      msg.createdTimestamp >= cutoffTimestamp &&
+      msg.createdTimestamp >= startTs && // After or at 00:00 yesterday
+      msg.createdTimestamp <= endTs &&   // Before or at 23:59 yesterday
       msg.author.id === discordClient.user.id &&
       msg.content?.startsWith(`<@`)
     );
@@ -462,12 +467,12 @@ async function runCronJobSchedulerCleanUp(discordClient = null) {
         await new Promise(res => setTimeout(res, 1234));
       }
       catch (err) {
-        console.error('Delete history failed', err.message);
+        console.error('Delete failed:', err.message);
       }
     }
 
     lastId = messages.last().id;
-    if (messages.last().createdTimestamp < cutoffTimestamp) {
+    if (messages.last().createdTimestamp < startTs) {
       fetching = false;
     }
   }
