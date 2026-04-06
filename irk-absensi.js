@@ -2,6 +2,7 @@ const fs = require('node:fs');
 
 const cron = require('node-cron');
 const fetch = require('node-fetch');
+const ntpClient = require('ntp-client');
 
 /**
  * 
@@ -52,8 +53,21 @@ const isValidHour = (val) => {
   return typeof val === 'string' && !isNaN(num) && num >= 0 && num < 24;
 };
 
-function getCurrentJakartaDate() {
-  const jakartaString = new Date().toLocaleString('en-US', {
+const getNetworkTime = (server = 'time.google.com', port = 123) => {
+  return new Promise((resolve, reject) => {
+    ntpClient.getNetworkTime(server, port, (err, date) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(date);
+    });
+  });
+};
+
+async function getCurrentJakartaDate() {
+  const date = await getNetworkTime();
+  const jakartaString = date.toLocaleString('en-US', {
     timeZone: 'Asia/Jakarta'
   });
   return new Date(jakartaString);
@@ -114,7 +128,7 @@ async function worker(userNik, cookies) {
 }
 
 async function presensiwfh(userNik, cookies, bulan = null, tahun = null) {
-  const current_date = getCurrentJakartaDate();
+  const current_date = await getCurrentJakartaDate();
   const url = `${baseUri}/presensiwfh`;
 
   const options = {
@@ -139,7 +153,7 @@ async function presensiwfh(userNik, cookies, bulan = null, tahun = null) {
 }
 
 async function presensiget(userNik, cookies, getTimeOnly = true) {
-  const current_date = getCurrentJakartaDate();
+  const current_date = await getCurrentJakartaDate();
   const url = `${baseUri}/presensi/get`;
 
   const options = {
@@ -196,7 +210,7 @@ async function startIrk(discordClient = null, discordId, userNik, userPassword) 
   let logger = console.log;
 
   try {
-    const current_date = getCurrentJakartaDate();
+    const current_date = await getCurrentJakartaDate();
 
     // IDM-IT-SD-03 :: 🚮︱bot-spam
     if (discordClient) {
@@ -337,7 +351,7 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
 }
 
 async function runCronJobScheduler(discordClient = null) {
-  const current_date = getCurrentJakartaDate();
+  const current_date = await getCurrentJakartaDate();
   const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
 
   for (const credential of jsonData.irk.accounts) {
@@ -404,18 +418,74 @@ async function runCronJobScheduler(discordClient = null) {
 }
 
 function startCron(discordClient = null) {
-  cron.schedule('* * * * *', async () => {
+  // Setiap Jam Di Menit Ke-0
+  cron.schedule('0 * * * *', async () => {
     if (isJobRunning) {
       console.log('Previous job still running. Skipping this run.');
       return;
     }
+
     try {
       isJobRunning = true;
-      await delay(10 * 1000);
+      await delay(15 * 1000);
       await runCronJobScheduler(discordClient);
     }
     finally {
       isJobRunning = false;
+    }
+  });
+
+  // Setiap Jam 0 Menit 0
+  cron.schedule('0 0 * * *', async () => {
+    try {
+      await delay(15 * 1000);
+
+      const guild = discordClient.guilds.get(jsonData.irk.guildId);
+      const channel = guild.channels.get(jsonData.irk.channelId);
+
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 1);
+      cutoff.setHours(0, 0, 0, 0);
+      const cutoffTimestamp = cutoff.getTime();
+
+      let lastId = null;
+      let fetching = true;
+
+      while (fetching) {
+        const options = { limit: 100 };
+        if (lastId) {
+          options.before = lastId;
+        }
+
+        const messages = await channel.fetchMessages(options);
+        if (messages.size === 0) {
+          break;
+        }
+
+        const toDelete = messages.filter(msg =>
+          msg.createdTimestamp >= cutoffTimestamp &&
+          msg.author.id === client.user.id &&
+          msg.content?.startsWith(`<@`)
+        );
+
+        for (const msg of toDelete.values()) {
+          try {
+            await msg.delete();
+            await new Promise(res => setTimeout(res, 1200)); // Delay sedikit lebih lama agar aman
+          }
+          catch (err) {
+            console.error('Delete history failed', err.message);
+          }
+        }
+
+        lastId = messages.last().id;
+        if (messages.last().createdTimestamp < cutoffTimestamp) {
+          fetching = false;
+        }
+      }
+    }
+    catch (e) {
+      console.error('Fetching history failed', e.message);
     }
   });
 }
