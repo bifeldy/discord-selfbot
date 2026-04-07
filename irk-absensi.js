@@ -483,8 +483,8 @@ async function runCronJobSchedulerCleanUp(discordClient = null) {
 function startCron(discordClient = null) {
   // Server Restart 6 Jam Sekali :: Hindari detik / menit ke-0
 
-  // Setiap Jam Di Menit Ke-0
-  cron.schedule('0 * * * *', async () => {
+  // Setiap Menit Ke-0
+  cron.schedule('* * * * *', async () => {
     if (isJobRunning) {
       console.log('Previous job still running. Skipping this run.');
       return;
@@ -499,12 +499,12 @@ function startCron(discordClient = null) {
       isJobRunning = false;
     }
   });
-
-  // Setiap Jam Di Menit Ke-0 Hanya Dari Jam 0 Sampai 3 Pagi
-  cron.schedule('0 0-3 * * *', async () => {
+  
+  // Setiap Menit Ke-0
+  cron.schedule('* * * * *', async () => {
     try {
       await delay(15 * 1000);
-      await runCronJobSchedulerCleanUp();
+      await runCronJobSchedulerCleanUp(discordClient);
     }
     catch (e) {
       console.error('Fetching history failed', e.message);
