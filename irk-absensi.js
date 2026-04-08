@@ -352,7 +352,7 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null) {
     let isNeedRunPulang = false;
 
     // Berangkat
-    let targetBerangkat = current_date.getHours() >= 0 && current_date.getHours() <= 3;
+    let targetBerangkat = current_date.getHours() >= 0 && current_date.getHours() <= 8;
     if (credential.targetPagi) {
       targetBerangkat = current_date.getHours() === credential.targetPagi;
     }
@@ -372,8 +372,14 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null) {
       }
     }
 
+    let jamAbsenSore = 18;
+    const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
+    if (dayName === 'Jumat') {
+      jamAbsenSore = 19;
+    }
+
     // Pulang
-    let targetPulang = current_date.getHours() >= 21 && current_date.getHours() <= 23;
+    let targetPulang = current_date.getHours() >= jamAbsenSore && current_date.getHours() <= 23;
     if (credential.targetSore) {
       targetPulang = current_date.getHours() === credential.targetSore;
     }
