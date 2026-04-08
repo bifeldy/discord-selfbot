@@ -238,7 +238,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
     }
 
     if (!_tempResponseData.data.user_irk) {
-      logger(`<@${discordId}> ${userNik} :: [USER] Bukan User Untuk Aplikasi IRK ~`);
+      logger(`<@${discordId}> ${userNik} :: [AKUN] Bukan User Untuk Aplikasi IRK ~`);
       return true;
     }
 
