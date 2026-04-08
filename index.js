@@ -374,9 +374,13 @@ client.on('message', async message => {
         else {
           const _ = await message.channel.send(`
             ❗ Format Yang Dibutuhkan
-            'userNik<SPASI>password = 1234567890 MyPass123$%^
-            'userNik<SPASI>password<SPASI>targetPagi<SPASI>targetSore = 1234567890 MyPass123$%^ 7 19
-          `.replace(/\s+/g, ' '));
+            -----
+            'userNik<SPASI>password'
+            => 1234567890 MyPass123$%^
+            -----
+            'userNik<SPASI>password<SPASI>targetPagi<SPASI>targetSore'
+            => 1234567890 MyPass123$%^ 7 19
+          `.split('\n').map(line => line.trim()).filter(line => line).join('\n'));
         }
       }
       else {
