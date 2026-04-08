@@ -253,7 +253,8 @@ client.on('message', async message => {
         let captureRegex = null;
         if (message.content.startsWith('quote https://discordapp.com')) {
           captureRegex = /quote (https:\/\/discordapp.com\/channels\/([0-9]+)\/([0-9]+)\/([0-9]+))(.*$)/gi;
-        } else if (message.content.startsWith('quote https://discord.com')) {
+        }
+        else if (message.content.startsWith('quote https://discord.com')) {
           captureRegex = /quote (https:\/\/discord.com\/channels\/([0-9]+)\/([0-9]+)\/([0-9]+))(.*$)/gi;
         }
         const captureResult = captureRegex.exec(message.content);
@@ -302,10 +303,11 @@ client.on('message', async message => {
                 mime = res.headers.get('Content-Type');
                 if (mime.startsWith('image/')) {
                   image_url = url;
-                } else if (mime.startsWith('video/')) {
+                }
+                else if (mime.startsWith('video/')) {
                   video_url = url;
                 }
-                // } else {
+                // else {
                 //   const totalFileSize = attachmentContent.filesize.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ',');
                 //   messageEmbed.addField(
                 //     attachmentContent.filename,
@@ -363,10 +365,12 @@ client.on('message', async message => {
         if (msgData.length === 2) {
           const result = await addEditIrk(message.author.id, msgData[0], msgData[1]);
           const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]}`);
-        } else if (msgData.length === 4) {
+        }
+        else if (msgData.length === 4) {
           const result = await addEditIrk(message.author.id, msgData[0], msgData[1], msgData[2], msgData[3]);
           const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} (Target Pagi = ${msgData[2]}, Sore = ${msgData[3]})`);
-        } else {
+        }
+        else {
           const _ = await message.channel.send(`
             ❗ Format Yang Dibutuhkan
             'userNik<SPASI>password = 1234567890 MyPass123$%^
