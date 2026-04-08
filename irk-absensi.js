@@ -239,7 +239,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
 
     if (!_tempResponseData.data.user_irk) {
       logger(`<@${discordId}> ${userNik} :: [USER] Bukan User Untuk Aplikasi IRK ~`);
-      return false;
+      return true;
     }
 
     const isPresensiAvailable = _tempResponseData.data.isPresensiAvailable;
@@ -258,7 +258,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
 
     if (!isPresensiAvailable || !isTargetWfhToday) {
       logger(`<@${discordId}> ${userNik} :: [JADWAL] Tidak Ada WFH, Mungkin Masuk Kantor / Libur Nasional ~`);
-      return false;
+      return true;
     }
 
     let presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies);
@@ -298,7 +298,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
 
     if (_tempResponseData.data.length <= 0) {
       logger(`<@${discordId}> ${userNik} :: [JADWAL] Belum Ada Data WFH, Periksa Juga Tanggal Untuk Ikut Ke Asia/Jakarta ~`);
-      return false;
+      return true;
     }
 
     const riwayatAbsen = _tempResponseData.data[0];
