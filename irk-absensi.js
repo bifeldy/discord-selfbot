@@ -298,6 +298,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
   }
   catch (e) {
     logger(`<@${discordId}> ${userNik} :: [ERROR] ${e.message}`);
+    throw e;
   }
 }
 
