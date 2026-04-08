@@ -219,7 +219,8 @@ client.on('message', async message => {
                 const _ = await message.channel.send(`[🎶 New Id] ${client.user.username}#${client.user.discriminator}`);
                 break;
               }
-            } catch (err) {
+            }
+            catch (err) {
               const _ = await message.channel.send(err.toString());
             }
           };
@@ -385,7 +386,8 @@ client.on('message', async message => {
 
     // TODO :: You Can Add Other Public Bot Command Here
 
-  } catch (err) {
+  }
+  catch (err) {
     const _ = await message.channel.send(err.toString());
   }
 });
@@ -403,7 +405,8 @@ async function start() {
         console.log(`[🌐 Server Listen] ${addr}`);
       }
     });
-  } catch (err) {
+  }
+  catch (err) {
     console.error(err);
     DISCORD_LOGIN_TOKEN = null;
     rl.question('[🏹 Input User Token] ', (token) => {
