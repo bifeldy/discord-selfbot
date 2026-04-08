@@ -217,7 +217,11 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
 
     const loginResponse = await login(userNik, userPassword);
     _tempResponseData = await loginResponse.json();
-    if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
+    if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
+      const errMsg = _tempResponseData.message || _tempResponseData.result || 'User Name / Password = Salah / Expired, Silahkan Set Ulang';
+      logger(`<@${discordId}> ${userNik} :: [LOGIN] ${errMsg}`);
+      jsonData.irk.accounts = jsonData.irk.accounts.filter(d => d.nik !== userNik);
+      fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
       return false;
     }
 
@@ -227,7 +231,9 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
 
     const workerResponse = await worker(userNik, cookies);
     _tempResponseData = await workerResponse.json();
-    if (!workerResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
+    if (!workerResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
+      const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
+      logger(`<@${discordId}> ${userNik} :: [WORKER] ${errMsg}`);
       return false;
     }
 
@@ -240,7 +246,9 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
 
     const presensiwfhResponse = await presensiwfh(current_date, userNik, cookies);
     _tempResponseData = await presensiwfhResponse.json();
-    if (!presensiwfhResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
+    if (!presensiwfhResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
+      const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
+      logger(`<@${discordId}> ${userNik} :: [PRESENSIWFH] ${errMsg}`);
       return false;
     }
 
@@ -255,7 +263,9 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
 
     let presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies);
     _tempResponseData = await presensigetResponse.json();
-    if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
+    if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
+      const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
+      logger(`<@${discordId}> ${userNik} :: [PRESENSIGET_TIME] ${errMsg}`);
       return false;
     }
 
@@ -272,13 +282,17 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
 
     const presensipostResponse = await presensipost(userNik, cookies);
     _tempResponseData = await presensipostResponse.json();
-    if (!presensipostResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
+    if (!presensipostResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
+      const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
+      logger(`<@${discordId}> ${userNik} :: [PRESENSIPOST] ${errMsg}`);
       return false;
     }
 
     presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, false);
     _tempResponseData = await presensigetResponse.json();
-    if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
+    if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
+      const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
+      logger(`<@${discordId}> ${userNik} :: [PRESENSIGET_HISTORY] ${errMsg}`);
       return false;
     }
 
@@ -323,7 +337,9 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
 
   const loginResponse = await login(userNik, userPassword);
   _tempResponseData = await loginResponse.json();
-  if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
+  if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
+    const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
+    logger(`<@${discordId}> ${userNik} :: [LOGIN] ${errMsg}`);
     return false;
   }
 
