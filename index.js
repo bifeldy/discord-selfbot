@@ -365,11 +365,11 @@ client.on('message', async message => {
 
         if (msgData.length === 2) {
           const result = await addEditIrk(message.author.id, msgData[0], msgData[1]);
-          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]}`);
+          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} (Target Pagi = 00:00, Sore = 18:00 + 30/)`);
         }
         else if (msgData.length === 4) {
           const result = await addEditIrk(message.author.id, msgData[0], msgData[1], msgData[2], msgData[3]);
-          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} (Target Pagi = ${msgData[2]}, Sore = ${msgData[3]})`);
+          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} (Target Pagi = ${msgData[2]}, Sore = ${msgData[3]} + 30/)`);
         }
         else {
           const _ = await message.channel.send(`

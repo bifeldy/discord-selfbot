@@ -48,10 +48,20 @@ const delay = (ms) => new Promise(resolve => {
   }, ms);
 });
 
-const isValidHour = (val) => {
-  const num = parseFloat(val);
-  return typeof val === 'string' && !isNaN(num) && num >= 0 && num < 24;
+const isValidTime = (val) => {
+  if (!val.includes(':')) {
+    const num = parseFloat(val);
+    return typeof val === 'string' && !isNaN(num) && num >= 0 && num < 24;
+  }
+
+  const regex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+  return regex.test(val);
 };
+
+const toMinutes = (timeStr) => {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+}
 
 const getNetworkTime = (server = 'time.google.com', port = 123) => {
   return new Promise((resolve, reject) => {
@@ -322,25 +332,49 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
 }
 
 async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamSore = null) {
-  if (jamPagi && jamSore) {
-    if (!isValidHour(jamPagi) || !isValidHour(jamSore)) {
-      return false;
-    }
-
-    jamPagi = parseFloat(jamPagi);
-    jamSore = parseFloat(jamSore);
-  }
-  else {
-    jamPagi = null;
-    jamSore = null;
-  }
-
   const loginResponse = await login(userNik, userPassword);
   _tempResponseData = await loginResponse.json();
   if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
     const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
     logger(`<@${discordId}> ${userNik} :: [LOGIN] ${errMsg}`);
     return false;
+  }
+
+  const maxPagi = toMinutes('09:00');
+  const minSore = toMinutes('16:59');
+
+  if (jamPagi) {
+    if (!isValidTime(jamPagi)) {
+      return false;
+    }
+
+    if (jamPagi >= maxPagi && jamPagi <= minSore) {
+      return false;
+    }
+
+    if (!jamPagi.includes(':')) {
+      jamPagi = `${jamPagi.toString().padStart(2, '0')}:00`;
+    }
+  }
+  else {
+    jamPagi = null;
+  }
+
+  if (jamSore) {
+    if (!isValidTime(jamSore)) {
+      return false;
+    }
+
+    if (jamSore >= maxPagi && jamSore <= minSore) {
+      return false;
+    }
+
+    if (!jamSore.includes(':')) {
+      jamSore = `${jamSore.toString().padStart(2, '0')}:00`;
+    }
+  }
+  else {
+    jamSore = null;
   }
 
   const idx = jsonData.irk.accounts.findIndex(d => d.nik === userNik);
@@ -367,19 +401,29 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
 // --
 
 async function runCronJobSchedulerIrk(current_date, discordClient = null) {
+  const currentMins = current_date.getHours() * 60 + current_date.getMinutes();
   const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
   const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
 
   for (const credential of jsonData.irk.accounts) {
+    let startMins = null;
+    let endMins = null;
+
     let isNeedRunBerangkat = false;
     let isNeedRunPulang = false;
 
     // Berangkat
-    let targetBerangkat = current_date.getHours() >= 0 && current_date.getHours() <= 8;
+    startMins = toMinutes('00:00');
+    endMins = toMinutes('07:59');
+
     if (credential.targetPagi) {
-      targetBerangkat = current_date.getHours() === credential.targetPagi;
+      startMins = toMinutes(credential.targetPagi);
+      if (startMins >= toMinutes('08:00')) {
+        endMins = toMinutes('08:59');
+      }
     }
 
+    const targetBerangkat = currentMins >= startMins && currentMins <= endMins;
     if (!credential.berangkat && targetBerangkat) {
       isNeedRunBerangkat = true;
     }
@@ -395,22 +439,19 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null) {
       }
     }
 
-    let jamAbsenSore = 18;
-    if (dayName === 'Jumat') {
-      jamAbsenSore += 1;
-    }
-
     // Pulang
-    let targetPulang = current_date.getHours() >= jamAbsenSore && current_date.getHours() <= 23;
-    if (credential.targetSore) {
-      jamAbsenSore = credential.targetSore;
-      if (dayName === 'Jumat') {
-        jamAbsenSore += 1;
-      }
+    startMins = toMinutes('18:00');
+    endMins = toMinutes('23:59');
 
-      targetPulang = current_date.getHours() === jamAbsenSore;
+    if (credential.targetSore) {
+      startMins = toMinutes(credential.targetSore);
     }
 
+    if (dayName === 'Jumat') {
+      startMins += 30;
+    }
+
+    const targetPulang = currentMins >= startMins && currentMins <= endMins;
     if (!credential.pulang && targetPulang) {
       isNeedRunPulang = true;
     }
