@@ -535,7 +535,7 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
         await new Promise(res => setTimeout(res, 1234));
       }
       catch (err) {
-        console.error('Delete failed:', err.message);
+        console.error('Delete failed:', err);
       }
     }
 
@@ -565,7 +565,7 @@ function startCron(discordClient = null) {
       await runCronJobSchedulerIrk(current_date, discordClient);
     }
     catch (err) {
-      console.error('IRK failed', err.message);
+      console.error('IRK failed', err);
     }
     finally {
       isJobRunning = false;
@@ -580,7 +580,7 @@ function startCron(discordClient = null) {
       await runCronJobSchedulerCleanUp(nowJakarta, discordClient);
     }
     catch (e) {
-      console.error('Fetching history failed', e.message);
+      console.error('Fetching history failed', e);
     }
   });
 }
