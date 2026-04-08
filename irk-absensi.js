@@ -218,7 +218,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
     const loginResponse = await login(userNik, userPassword);
     _tempResponseData = await loginResponse.json();
     if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
-      return;
+      return false;
     }
 
     let cookies = loginResponse.headers.raw()['set-cookie']
@@ -228,12 +228,12 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
     const workerResponse = await worker(userNik, cookies);
     _tempResponseData = await workerResponse.json();
     if (!workerResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
-      return;
+      return false;
     }
 
     if (!_tempResponseData.data.user_irk) {
       logger(`<@${discordId}> ${userNik} :: [USER] Bukan User Untuk Aplikasi IRK ~`);
-      return;
+      return false;
     }
 
     const isPresensiAvailable = _tempResponseData.data.isPresensiAvailable;
@@ -241,7 +241,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
     const presensiwfhResponse = await presensiwfh(current_date, userNik, cookies);
     _tempResponseData = await presensiwfhResponse.json();
     if (!presensiwfhResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
-      return;
+      return false;
     }
 
     const tanggal_wfh = _tempResponseData.data[0].tanggal_wfh;
@@ -250,13 +250,13 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
 
     if (!isPresensiAvailable || !isTargetWfhToday) {
       logger(`<@${discordId}> ${userNik} :: [JADWAL] Tidak Ada WFH, Mungkin Masuk Kantor / Libur Nasional ~`);
-      return;
+      return false;
     }
 
     let presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies);
     _tempResponseData = await presensigetResponse.json();
     if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
-      return;
+      return false;
     }
 
     const jamAbsen = _tempResponseData.data[0];
@@ -273,18 +273,18 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
     const presensipostResponse = await presensipost(userNik, cookies);
     _tempResponseData = await presensipostResponse.json();
     if (!presensipostResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
-      return;
+      return false;
     }
 
     presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, false);
     _tempResponseData = await presensigetResponse.json();
     if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
-      return;
+      return false;
     }
 
     if (_tempResponseData.data.length <= 0) {
       logger(`<@${discordId}> ${userNik} :: [JADWAL] Belum Ada Data WFH, Periksa Juga Tanggal Untuk Ikut Ke Asia/Jakarta ~`);
-      return;
+      return false;
     }
 
     const riwayatAbsen = _tempResponseData.data[0];
@@ -295,11 +295,14 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
       [ABSENSI_BERANGKAT] ${jamMasuk} => ${absenMasukLokasi}
       [ABSENSI_PULANG] ${jamKeluar} => ${absenKeluarLokasi}
     `.split('\n').map(line => line.trim()).filter(line => line).join('\n'));
+
+    return true;
   }
   catch (e) {
     logger(`<@${discordId}> ${userNik} :: [ERROR] ${e.message}`);
-    throw e;
   }
+
+  return false;
 }
 
 async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamSore = null) {
@@ -402,16 +405,17 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null) {
 
     // Run
     if (isNeedRunBerangkat || isNeedRunPulang) {
-      await startIrk(current_date, credential.authorId, credential.nik, credential.password, discordClient);
+      const res = await startIrk(current_date, credential.authorId, credential.nik, credential.password, discordClient);
+      if (res) {
+        if (isNeedRunBerangkat) {
+          credential.berangkat = new Date().toISOString();
+        }
+        else if (isNeedRunPulang) {
+          credential.pulang = new Date().toISOString();
+        }
 
-      if (isNeedRunBerangkat) {
-        credential.berangkat = new Date().toISOString();
+        fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
       }
-      else if (isNeedRunPulang) {
-        credential.pulang = new Date().toISOString();
-      }
-
-      fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
     }
 
   }
