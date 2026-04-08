@@ -127,8 +127,7 @@ async function worker(userNik, cookies) {
   return fetch(url, options);
 }
 
-async function presensiwfh(userNik, cookies, bulan = null, tahun = null) {
-  const current_date = await getCurrentJakartaDate();
+async function presensiwfh(current_date, userNik, cookies, bulan = null, tahun = null) {
   const url = `${baseUri}/presensiwfh`;
 
   const options = {
@@ -152,8 +151,7 @@ async function presensiwfh(userNik, cookies, bulan = null, tahun = null) {
   return fetch(url, options);
 }
 
-async function presensiget(userNik, cookies, getTimeOnly = true) {
-  const current_date = await getCurrentJakartaDate();
+async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTimeOnly = true) {
   const url = `${baseUri}/presensi/get`;
 
   const options = {
@@ -172,8 +170,6 @@ async function presensiget(userNik, cookies, getTimeOnly = true) {
     });
   }
   else {
-    const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
-
     options.body = JSON.stringify({
       userid: userNik,
       tglAwal: current_yyyyMMdd_dashHyphens,
@@ -206,14 +202,12 @@ async function presensipost(userNik, cookies) {
 
 // -- --
 
-async function startIrk(discordClient = null, discordId, userNik, userPassword) {
+async function startIrk(current_date, discordId, userNik, userPassword, discordClient = null) {
   let logger = console.log;
 
   try {
-    const current_date = await getCurrentJakartaDate();
-
-    // IDM-IT-SD-03 :: 🚮︱bot-spam
     if (discordClient) {
+      // IDM-IT-SD-03 :: 🚮︱bot-spam
       const guild = discordClient.guilds.get(jsonData.irk.guildId);
       const channel = guild.channels.get(jsonData.irk.channelId);
       logger = channel.send.bind(channel);
@@ -244,7 +238,7 @@ async function startIrk(discordClient = null, discordId, userNik, userPassword) 
 
     const isPresensiAvailable = _tempResponseData.data.isPresensiAvailable;
 
-    const presensiwfhResponse = await presensiwfh(userNik, cookies);
+    const presensiwfhResponse = await presensiwfh(current_date, userNik, cookies);
     _tempResponseData = await presensiwfhResponse.json();
     if (!presensiwfhResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
       return;
@@ -259,7 +253,7 @@ async function startIrk(discordClient = null, discordId, userNik, userPassword) 
       return;
     }
 
-    let presensigetResponse = await presensiget(userNik, cookies);
+    let presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies);
     _tempResponseData = await presensigetResponse.json();
     if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
       return;
@@ -282,7 +276,7 @@ async function startIrk(discordClient = null, discordId, userNik, userPassword) 
       return;
     }
 
-    presensigetResponse = await presensiget(userNik, cookies, false);
+    presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, false);
     _tempResponseData = await presensigetResponse.json();
     if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299) {
       return;
@@ -294,15 +288,13 @@ async function startIrk(discordClient = null, discordId, userNik, userPassword) 
     }
 
     const riwayatAbsen = _tempResponseData.data[0];
-    const absenMasukJam = riwayatAbsen.machinein;
-    const absenKeluarJam = riwayatAbsen.machineout;
     const absenMasukLokasi = riwayatAbsen.location_in?.join(', ');
     const absenKeluarLokasi = riwayatAbsen.location_out?.join(', ');
     logger(`
-      <@${discordId}> ${userNik}
-      [ABSENSI_BERANGKAT] ${absenMasukJam} => ${absenMasukLokasi}
-      [ABSENSI_PULANG] ${absenKeluarJam} => ${absenKeluarLokasi}
-    `.replace(/\s+/g, ' '));
+      <@${discordId}> ${userNik} :: ${dayName}
+      [ABSENSI_BERANGKAT] ${jamMasuk} => ${absenMasukLokasi}
+      [ABSENSI_PULANG] ${jamKeluar} => ${absenKeluarLokasi}
+    `.split('\n').map(line => line.trim()).filter(line => line).join('\n'));
   }
   catch (e) {
     logger(`<@${discordId}> ${userNik} :: [ERROR] ${e.message}`);
@@ -352,8 +344,7 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
 
 // --
 
-async function runCronJobSchedulerIrk(discordClient = null) {
-  const current_date = await getCurrentJakartaDate();
+async function runCronJobSchedulerIrk(current_date, discordClient = null) {
   const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
 
   for (const credential of jsonData.irk.accounts) {
@@ -404,7 +395,7 @@ async function runCronJobSchedulerIrk(discordClient = null) {
 
     // Run
     if (isNeedRunBerangkat || isNeedRunPulang) {
-      await startIrk(discordClient, credential.authorId, credential.nik, credential.password);
+      await startIrk(current_date, credential.authorId, credential.nik, credential.password, discordClient);
 
       if (isNeedRunBerangkat) {
         credential.berangkat = new Date().toISOString();
@@ -419,11 +410,13 @@ async function runCronJobSchedulerIrk(discordClient = null) {
   }
 }
 
-async function runCronJobSchedulerCleanUp(discordClient = null) {
+async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
+  if (!discordClient) {
+    return;
+  }
+
   const guild = discordClient.guilds.get(jsonData.irk.guildId);
   const channel = guild.channels.get(jsonData.irk.channelId);
-
-  const nowJakarta = await getCurrentJakartaDate();
 
   // Start of Yesterday (00:00:00)
   const startOfYesterday = new Date(nowJakarta);
@@ -493,18 +486,23 @@ function startCron(discordClient = null) {
     try {
       isJobRunning = true;
       await delay(15 * 1000);
-      await runCronJobSchedulerIrk(discordClient);
+      const current_date = await getCurrentJakartaDate();
+      await runCronJobSchedulerIrk(current_date, discordClient);
+    }
+    catch (err) {
+      console.error('IRK failed', err.message);
     }
     finally {
       isJobRunning = false;
     }
   });
-  
+
   // Setiap Menit Ke-0
   cron.schedule('* * * * *', async () => {
     try {
       await delay(15 * 1000);
-      await runCronJobSchedulerCleanUp(discordClient);
+      const nowJakarta = await getCurrentJakartaDate();
+      await runCronJobSchedulerCleanUp(nowJakarta, discordClient);
     }
     catch (e) {
       console.error('Fetching history failed', e.message);
