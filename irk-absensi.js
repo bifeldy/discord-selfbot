@@ -352,6 +352,7 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
 
 async function runCronJobSchedulerIrk(current_date, discordClient = null) {
   const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
+  const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
 
   for (const credential of jsonData.irk.accounts) {
     let isNeedRunBerangkat = false;
@@ -379,15 +380,19 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null) {
     }
 
     let jamAbsenSore = 18;
-    const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
     if (dayName === 'Jumat') {
-      jamAbsenSore = 19;
+      jamAbsenSore += 1;
     }
 
     // Pulang
     let targetPulang = current_date.getHours() >= jamAbsenSore && current_date.getHours() <= 23;
     if (credential.targetSore) {
-      targetPulang = current_date.getHours() === credential.targetSore;
+      jamAbsenSore = credential.targetSore;
+      if (dayName === 'Jumat') {
+        jamAbsenSore += 1;
+      }
+
+      targetPulang = current_date.getHours() === jamAbsenSore;
     }
 
     if (!credential.pulang && targetPulang) {
