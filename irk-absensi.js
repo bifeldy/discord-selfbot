@@ -63,23 +63,52 @@ const toMinutes = (timeStr) => {
   return hours * 60 + minutes;
 }
 
-const getNetworkTime = (server = 'time.google.com', port = 123) => {
-  return new Promise((resolve, reject) => {
-    ntpClient.getNetworkTime(server, port, (err, date) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(date);
-    });
-  });
-};
+// -- --
+
+const ntpServers = [
+  'ntp.bmkg.go.id',
+  'time.cloudflare.com',
+  'time.google.com'
+];
+
+async function getStableTime() {
+  for (const server of ntpServers) {
+    try {
+      const date = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error(`Timeout pada server ${server}`));
+        }, 3000);
+
+        const [ipHost, portStr] = server.split(':');
+        const port = portStr ? parseInt(portStr) : 123;
+
+        ntpClient.getNetworkTime(ipHost, port, (err, date) => {
+          clearTimeout(timeout);
+
+          if (err) {
+            return reject(err);
+          }
+
+          resolve(date);
+        });
+      });
+
+      return date;
+    }
+    catch (e) {
+      // Check Next ~
+    }
+  }
+
+  throw new Error("Semua server NTP gagal dijangkau.");
+}
 
 async function getCurrentJakartaDate() {
-  const date = await getNetworkTime();
+  const date = await getStableTime();
   const jakartaString = date.toLocaleString('en-US', {
     timeZone: 'Asia/Jakarta'
   });
+
   return new Date(jakartaString);
 }
 
