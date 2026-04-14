@@ -71,7 +71,7 @@ const ntpServers = [
   'time.google.com'
 ];
 
-async function getStableTime() {
+async function getNtpDate() {
   for (const server of ntpServers) {
     try {
       const date = await new Promise((resolve, reject) => {
@@ -103,9 +103,12 @@ async function getStableTime() {
   throw new Error("Semua server NTP gagal dijangkau.");
 }
 
-async function getCurrentJakartaDate() {
-  const date = await getStableTime();
-  const jakartaString = date.toLocaleString('en-US', {
+async function getCurrentJakartaDate(ntpDate = null) {
+  if (!ntpDate) {
+    ntpDate = await getNtpDate();
+  }
+
+  const jakartaString = ntpDate.toLocaleString('en-US', {
     timeZone: 'Asia/Jakarta'
   });
 
@@ -554,12 +557,14 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
       break;
     }
 
-    const toDelete = messages.filter(msg =>
-      msg.createdTimestamp >= startTs && // After or at 00:00 yesterday
-      msg.createdTimestamp <= endTs &&   // Before or at 23:59 yesterday
-      msg.author.id === discordClient.user.id &&
-      msg.content?.startsWith(`<@`)
-    );
+    const toDelete = messages.filter(async msg => {
+      const msgCreated = await getCurrentJakartaDate(new Date(msg.createdTimestamp));
+
+      return msgCreated >= startTs && // After or at 00:00 yesterday
+        msgCreated <= endTs &&   // Before or at 23:59 yesterday
+        msg.author.id === discordClient.user.id &&
+        msg.content?.startsWith(`<@`);
+    });
 
     for (const msg of toDelete.values()) {
       try {
