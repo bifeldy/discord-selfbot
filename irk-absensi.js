@@ -478,6 +478,9 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null) {
 
     if (dayName === 'Jumat') {
       startMins += 30;
+      if (startMins > endMins) {
+        startMins = endMins;
+      }
     }
 
     const targetPulang = currentMins >= startMins && currentMins <= endMins;
