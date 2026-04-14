@@ -558,10 +558,12 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
     }
 
     const toDelete = messages.filter(async msg => {
-      const msgCreated = await getCurrentJakartaDate(new Date(msg.createdTimestamp));
+      const msgCreatedDate = new Date(msg.createdTimestamp);
+      const msgCreatedDateJakarta = await getCurrentJakartaDate(msgCreatedDate);
+      const tsJakarta = msgCreatedDateJakarta.getTime();
 
-      return msgCreated >= startTs && // After or at 00:00 yesterday
-        msgCreated <= endTs &&   // Before or at 23:59 yesterday
+      return tsJakarta >= startTs && // After or at 00:00 yesterday
+        tsJakarta <= endTs &&   // Before or at 23:59 yesterday
         msg.author.id === discordClient.user.id &&
         msg.content?.startsWith(`<@`);
     });
