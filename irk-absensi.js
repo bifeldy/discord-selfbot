@@ -327,7 +327,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
     if (!presensipostResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
       logger(`<@${discordId}> ${userNik} :: [PRESENSIPOST] ${errMsg}`);
-      return false;
+      return errMsg?.toUpperCase().trim() === 'SUDAH ADA DATA PRESENSI MASUK UNTUK HARI INI' ? true : false;
     }
 
     presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, false);
@@ -335,7 +335,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
     if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
       logger(`<@${discordId}> ${userNik} :: [PRESENSIGET_HISTORY] ${errMsg}`);
-      return errMsg?.toUpperCase().trim() === 'SUDAH ADA DATA PRESENSI MASUK UNTUK HARI INI' ? true : false;
+      return false;
     }
 
     if (_tempResponseData.data.length <= 0) {
