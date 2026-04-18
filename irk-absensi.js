@@ -455,6 +455,8 @@ async function addEditIrk(discordId, msgData) {
       'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore<SPASI>LongitudeX<Spasi>LatitudeY'
       => 1234567890 MyPass123$%^ 7 19 -0.9438507 -72.4522217
       -----
+      Silahkan Ambil Long(X) Lat(Y) Dari https://www.openstreetmap.org
+      -----
     `.split('\n').map(line => line.trim()).filter(line => line).join('\n');
   }
 
