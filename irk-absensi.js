@@ -46,6 +46,10 @@ const delay = (ms) => new Promise(resolve => {
 
 const isValidTime = (val) => {
   if (!val.includes(':')) {
+    if (val.includes('.')) {
+      return false;
+    }
+
     const num = parseFloat(val);
     return typeof val === 'string' && !isNaN(num) && num >= 0 && num < 24;
   }
@@ -524,7 +528,7 @@ async function addEditIrk(discordId, msgData) {
 
   if (jamPagi) {
     if (!isValidTime(jamPagi)) {
-      return `<@${discordId}> ${userNik} :: [PAGI] Format 'hh24:mm' Tidak Valid`;
+      return `<@${discordId}> ${userNik} :: [PAGI] Format 'hh24:mm' (Pakai : Titik 2) Tidak Valid`;
     }
 
     if (jamPagi >= maxPagi && jamPagi <= minSore) {
