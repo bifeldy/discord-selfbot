@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 
 const cron = require('node-cron');
@@ -21,11 +22,6 @@ let isJobRunning = false;
 const jsonConfig = 'config.json';
 const jsonFile = fs.readFileSync(jsonConfig, { encoding: 'utf8' });
 const jsonData = JSON.parse(jsonFile);
-
-// -- --
-
-const userLong = 'eyJpdiI6InJJSEh2QjFLL2prd05keWZBRHpTN0E9PSIsInZhbHVlIjoiSXZjcVMwWW9OMVIwbXJJWXJOMHNTQT09In0\u003d';
-const userLat = 'eyJpdiI6ImRQM3hIRnI5SDREMThXaWdVZU0rWGc9PSIsInZhbHVlIjoicFRLcVBvd1ZZV3Z1cnM0cHYzZ2pzUT09In0\u003d';
 
 // -- --
 
@@ -125,6 +121,63 @@ function getFormattedDate(date) {
   return `${year}-${month}-${day}`;
 }
 
+// --
+
+const MASTER_KEY = jsonData.irk.masterKey;
+
+const userLong = 'eyJpdiI6InJJSEh2QjFLL2prd05keWZBRHpTN0E9PSIsInZhbHVlIjoiSXZjcVMwWW9OMVIwbXJJWXJOMHNTQT09In0=';
+const userLat = 'eyJpdiI6ImRQM3hIRnI5SDREMThXaWdVZU0rWGc9PSIsInZhbHVlIjoicFRLcVBvd1ZZV3Z1cnM0cHYzZ2pzUT09In0=';
+
+function laraEncrypt(plainText) {
+  const key = Buffer.from(MASTER_KEY, 'base64');
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+
+  let encrypted = cipher.update(plainText.toString(), 'utf8', 'base64');
+  encrypted += cipher.final('base64');
+
+  const jsonContainer = JSON.stringify({
+    iv: iv.toString('base64'),
+    value: encrypted
+  });
+
+  return Buffer.from(jsonContainer).toString('base64');
+}
+
+function laraDecrypt(base64Payload) {
+  const key = Buffer.from(MASTER_KEY, 'base64');
+
+  const jsonString = Buffer.from(base64Payload, 'base64').toString('utf8');
+  const data = JSON.parse(jsonString);
+
+  const iv = Buffer.from(data.iv, 'base64');
+  const encryptedValue = Buffer.from(data.value, 'base64');
+
+  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+  let decrypted = decipher.update(encryptedValue, 'base64', 'utf8');
+  decrypted += decipher.final('utf8');
+
+  return decrypted;
+}
+
+async function cekAlamatReal(long, lat) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lon=${long}&lat=${lat}`;
+
+  const options = {
+    method: 'GET',
+    headers: defaultHeader
+  };
+
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.display_name;
+}
+
 // -- --
 
 async function login(userNik, userPassword) {
@@ -222,8 +275,11 @@ async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTi
   return fetch(url, options);
 }
 
-async function presensipost(userNik, cookies) {
+async function presensipost(userNik, cookies, long = '-0.9438507', lat = '-72.4522217') {
   const url = `${baseUri}/presensi/post`;
+
+  const encLong = MASTER_KEY ? userLong : laraEncrypt(long);
+  const encLat = MASTER_KEY ? userLat : laraEncrypt(lat);
 
   const options = {
     method: 'POST',
@@ -234,8 +290,8 @@ async function presensipost(userNik, cookies) {
     },
     body: JSON.stringify({
       userid: userNik,
-      latitude: userLat,
-      longitude: userLong
+      longitude: encLong,
+      latitude: encLat
     })
   };
 
@@ -244,7 +300,7 @@ async function presensipost(userNik, cookies) {
 
 // -- --
 
-async function startIrk(current_date, discordId, userNik, userPassword, discordClient = null) {
+async function startIrk(current_date, discordId, userNik, userPassword, long = null, lat = null, discordClient = null) {
   let logger = console.log;
 
   try {
@@ -322,7 +378,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
       jamKeluar = jamAbsen.machineout
     }
 
-    const presensipostResponse = await presensipost(userNik, cookies);
+    const presensipostResponse = await presensipost(userNik, cookies, long, lat);
     _tempResponseData = await presensipostResponse.json();
     if (!presensipostResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
@@ -363,13 +419,63 @@ async function startIrk(current_date, discordId, userNik, userPassword, discordC
   return false;
 }
 
-async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamSore = null) {
+async function addEditIrk(discordId, msgData) {
+  let userNik = null;
+  let userPassword = null;
+  let jamPagi = null;
+  let jamSore = null;
+  let long = null;
+  let lat = null;
+
+  if (msgData.length === 2 || msgData.length === 4 || msgData.length === 6) {
+    userNik = msgData[0];
+    userPassword = msgData[1];
+
+    if (msgData.length >= 4) {
+      jamPagi = msgData[2];
+      jamSore = msgData[3];
+    }
+
+    if (msgData.length >= 6) {
+      long = msgData[4];
+      lat = msgData[5];
+    }
+  }
+  else {
+    return `
+      -----
+      ❗ Format Yang Dibutuhkan 2/4/6 Data (Depannya Harus Tag Saya) <@306076547616473089>
+      -----
+      'userNik<SPASI>password'
+      => 1234567890 MyPass123$%^
+      -----
+      'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore'
+      => 1234567890 MyPass123$%^ 7 19
+      -----
+      'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore<SPASI>LongitudeX<Spasi>LatitudeY'
+      => 1234567890 MyPass123$%^ 7 19 -0.9438507 -72.4522217
+      -----
+    `.split('\n').map(line => line.trim()).filter(line => line).join('\n');
+  }
+
+  let alamat = null;
+  if (long || lat) {
+    try {
+      alamat = await cekAlamatReal(long, lat);
+      if (!alamat) {
+        return `<@${discordId}> ${userNik} :: [KOORDINAT] Alamat Tidak Tersedia, Silahkan Ambil Long(X) Lat(Y) Dari https://www.openstreetmap.org`;
+      }
+    }
+    catch (e) {
+      return `<@${discordId}> ${userNik} :: [ALAMAT] ${e.message}`;
+    }
+  }
+
   const loginResponse = await login(userNik, userPassword);
   _tempResponseData = await loginResponse.json();
   if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
     const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
-    logger(`<@${discordId}> ${userNik} :: [LOGIN] ${errMsg}`);
-    return false;
+    return `<@${discordId}> ${userNik} :: [LOGIN] ${errMsg}`;
   }
 
   const maxPagi = toMinutes('09:00');
@@ -377,11 +483,11 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
 
   if (jamPagi) {
     if (!isValidTime(jamPagi)) {
-      return false;
+      return `<@${discordId}> ${userNik} :: [PAGI] Format 'hh24:mm' Tidak Valid`;
     }
 
     if (jamPagi >= maxPagi && jamPagi <= minSore) {
-      return false;
+      return `<@${discordId}> ${userNik} :: [PAGI] Waktu Berada Di Rentang Waktu Yang Salah / Telat Masuk`;
     }
 
     if (!jamPagi.includes(':')) {
@@ -394,11 +500,11 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
 
   if (jamSore) {
     if (!isValidTime(jamSore)) {
-      return false;
+      return `<@${discordId}> ${userNik} :: [SORE] Format 'hh24:mm' Tidak Valid`;
     }
 
     if (jamSore >= maxPagi && jamSore <= minSore) {
-      return false;
+      return `<@${discordId}> ${userNik} :: [SORE] Waktu Berada Di Rentang Waktu Yang Salah / Pulang Lebih Awal`;
     }
 
     if (!jamSore.includes(':')) {
@@ -415,6 +521,8 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
     jsonData.irk.accounts[idx].password = userPassword;
     jsonData.irk.accounts[idx].targetPagi = jamPagi;
     jsonData.irk.accounts[idx].targetSore = jamSore;
+    jsonData.irk.accounts[idx].longitude = long;
+    jsonData.irk.accounts[idx].latitude = lat;
   }
   else {
     jsonData.irk.accounts.push({
@@ -422,12 +530,14 @@ async function addEditIrk(discordId, userNik, userPassword, jamPagi = null, jamS
       nik: userNik,
       password: userPassword,
       targetPagi: jamPagi,
-      targetSore: jamSore
+      targetSore: jamSore,
+      longitude: long,
+      latitude: lat
     });
   }
 
   fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
-  return true;
+  return `<@${discordId}> ${userNik} :: (Target Pagi = ${jamPagi}, Sore = ${jamSore} +:30/), [Long (X) = ${long}, Lat (Y) = ${lat}] ${alamat}`;
 }
 
 // --
@@ -504,7 +614,16 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null) {
 
     // Run
     if (isNeedRunBerangkat || isNeedRunPulang) {
-      const res = await startIrk(current_date, credential.authorId, credential.nik, credential.password, discordClient);
+      const res = await startIrk(
+        current_date,
+        credential.authorId,
+        credential.nik,
+        credential.password,
+        credential.longitude,
+        credential.latitude,
+        discordClient
+      );
+
       if (res) {
         if (isNeedRunBerangkat) {
           credential.berangkat = new Date().toISOString();

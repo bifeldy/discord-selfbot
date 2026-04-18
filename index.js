@@ -167,7 +167,7 @@ client.on('message', async message => {
       )
     ) {
       const latency = new Date().getTime() - new Date(message.createdTimestamp).getTime();
-      const _ = await message.channel.send(`<@${message.author.id}> Pong ${latency} ms late!`);
+      await message.channel.send(`<@${message.author.id}> Pong ${latency} ms late!`);
     }
 
     // Self Bot Area
@@ -183,7 +183,7 @@ client.on('message', async message => {
       // Change Bot Logging
       if (message.content.startsWith('log')) {
         jsonData.logging = !jsonData.logging;
-        const _ = await message.channel.send(`Logging :: ${jsonData.logging}`);
+        await message.channel.send(`Logging :: ${jsonData.logging}`);
         fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
       }
 
@@ -211,17 +211,17 @@ client.on('message', async message => {
                   member.user.username !== client.user.username
                 ) {
                   console.log(`[=] ${member.user.username}#${member.user.discriminator}`);
-                  const _ = client.user.setUsername(member.user.username);
+                  client.user.setUsername(member.user.username);
                   break;
                 }
               }
               if (currentDiscrim != client.user.discriminator) {
-                const _ = await message.channel.send(`[🎶 New Id] ${client.user.username}#${client.user.discriminator}`);
+                await message.channel.send(`[🎶 New Id] ${client.user.username}#${client.user.discriminator}`);
                 break;
               }
             }
             catch (err) {
-              const _ = await message.channel.send(err.toString());
+              await message.channel.send(err.toString());
             }
           };
         }
@@ -237,14 +237,14 @@ client.on('message', async message => {
         }
         jsonData.ping = emojiPing;
         fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
-        const _ = await message.channel.send(`Totals :: ${emojiPing.join('')}`);
+        await message.channel.send(`Totals :: ${emojiPing.join('')}`);
       }
 
       // Upload A Files
       else if (message.content.startsWith('ddl ')) {
         const ddlToUpload = message.content.slice(4).trim();
         if (ddlToUpload) {
-          const __ = await message.channel.send(`<@${message.author.id}>`, { files: [ddlToUpload] });
+          await message.channel.send(`<@${message.author.id}>`, { files: [ddlToUpload] });
         }
       }
 
@@ -319,7 +319,7 @@ client.on('message', async message => {
           }
           // messageEmbed.setTimestamp(quotedMessage.createdTimestamp);
           // messageEmbed.setFooter(`#${quotedMessage.channel.name} @ ${quotedMessage.channel.guild.name}`);
-          // const _ = await message.channel.send(textReply, messageEmbed);
+          // await message.channel.send(textReply, messageEmbed);
           let urlParam = ``;
           urlParam += `site_name=${encodeURIComponent(site_name)}`;
           urlParam += `&site_url=${encodeURIComponent(site_url)}`;
@@ -333,9 +333,9 @@ client.on('message', async message => {
           urlParam += `&icon_url=${encodeURIComponent(icon_url)}`;
           urlParam += `&title=${encodeURIComponent(title)}`;
           urlParam += `&descriptions=${encodeURIComponent(descriptions)}`;
-          const _ = await message.channel.send(`${textReply} [⁖↓](${current_domain}/?${urlParam})`);
+          await message.channel.send(`${textReply} [⁖↓](${current_domain}/?${urlParam})`);
         }
-        const _ = await message.delete();
+        await message.delete();
       }
 
       // TODO :: You Can Add Other Self Bot Command Here
@@ -358,33 +358,18 @@ client.on('message', async message => {
       }
 
       if (message.content.startsWith('irk ')) {
-        const msgData = message.content.slice(4).trim().split(' ').filter(d => d);
         if (message.guild?.id === jsonData.irk.guildId) {
-          const _ = await message.delete();
+          await message.delete();
         }
 
-        if (msgData.length === 2) {
-          const result = await addEditIrk(message.author.id, msgData[0], msgData[1]);
-          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} (Target Pagi = 00:00, Sore = 18:00 +:30/)`);
-        }
-        else if (msgData.length === 4) {
-          const result = await addEditIrk(message.author.id, msgData[0], msgData[1], msgData[2], msgData[3]);
-          const _ = await message.channel.send(`<@${message.author.id}> ${result ? 'Berhasil' : 'Gagal'} menyimpan :: ${msgData[0]} (Target Pagi = ${msgData[2]}, Sore = ${msgData[3]} +:30/)`);
-        }
-        else {
-          const _ = await message.channel.send(`
-            ❗ Format Yang Dibutuhkan
-            -----
-            'userNik<SPASI>password'
-            => 1234567890 MyPass123$%^
-            -----
-            'userNik<SPASI>password<SPASI>targetPagi<SPASI>targetSore'
-            => 1234567890 MyPass123$%^ 7 19
-          `.split('\n').map(line => line.trim()).filter(line => line).join('\n'));
-        }
+        const msgData = message.content.slice(4).trim().split(' ').filter(d => d);
+        const result = await addEditIrk(message.author.id, msgData);
+        await message.channel.send(result);
       }
+
+      // You Tagged ~
       else {
-        const _ = await message.channel.send(emojiPing[Math.floor(Math.random() * emojiPing.length)]);
+        await message.channel.send(emojiPing[Math.floor(Math.random() * emojiPing.length)]);
       }
     }
 
@@ -392,13 +377,13 @@ client.on('message', async message => {
 
   }
   catch (err) {
-    const _ = await message.channel.send(err.toString());
+    await message.channel.send(err.toString());
   }
 });
 
 async function start() {
   try {
-    const _ = await client.login(DISCORD_LOGIN_TOKEN);
+    await client.login(DISCORD_LOGIN_TOKEN);
     await server.listen({ host: '0.0.0.0', port: process.env['PORT'] || 3001 }, (err, addr) => {
       if (err) {
         start();
