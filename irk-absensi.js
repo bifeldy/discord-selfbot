@@ -125,8 +125,8 @@ function getFormattedDate(date) {
 
 const MASTER_KEY = jsonData.irk.masterKey;
 
-const userLong = 'eyJpdiI6InJJSEh2QjFLL2prd05keWZBRHpTN0E9PSIsInZhbHVlIjoiSXZjcVMwWW9OMVIwbXJJWXJOMHNTQT09In0=';
 const userLat = 'eyJpdiI6ImRQM3hIRnI5SDREMThXaWdVZU0rWGc9PSIsInZhbHVlIjoicFRLcVBvd1ZZV3Z1cnM0cHYzZ2pzUT09In0=';
+const userLon = 'eyJpdiI6InJJSEh2QjFLL2prd05keWZBRHpTN0E9PSIsInZhbHVlIjoiSXZjcVMwWW9OMVIwbXJJWXJOMHNTQT09In0=';
 
 function laraEncrypt(plainText) {
   const key = Buffer.from(MASTER_KEY, 'base64');
@@ -160,8 +160,8 @@ function laraDecrypt(base64Payload) {
   return decrypted;
 }
 
-async function cekAlamatReal(long, lat) {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lon=${long}&lat=${lat}`;
+async function cekAlamatReal(lat, lon) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
 
   const options = {
     method: 'GET',
@@ -176,6 +176,33 @@ async function cekAlamatReal(long, lat) {
 
   const data = await response.json();
   return data.display_name;
+}
+
+function parseOSM(url) {
+  try {
+    const hash = url.split('#')[1];
+
+    if (!hash || !hash.startsWith('map=')) {
+      throw new Error("Format URL tidak valid (harus mengandung #map=)");
+    }
+
+    const parts = hash.replace('map=', '').split('/');
+
+    const zoom = parts[0];
+    const lat = parts[1];
+    const lon = parts[2];
+
+    return {
+      success: true,
+      zoom: zoom,
+      latitude: lat,
+      longitude: lon,
+      googleFormat: `${lat}, ${lon}`
+    };
+  }
+  catch (e) {
+    return { success: false, error: e.message };
+  }
 }
 
 // -- --
@@ -275,11 +302,11 @@ async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTi
   return fetch(url, options);
 }
 
-async function presensipost(userNik, cookies, long = null, lat = null) {
+async function presensipost(userNik, cookies, lat = null, lon = null) {
   const url = `${baseUri}/presensi/post`;
 
-  const encLong = MASTER_KEY ? laraEncrypt(long || '-0.9438507') : userLong;
   const encLat = MASTER_KEY ? laraEncrypt(lat || '-72.4522217') : userLat;
+  const encLong = MASTER_KEY ? laraEncrypt(lon || '-0.9438507') : userLon;
 
   const options = {
     method: 'POST',
@@ -300,7 +327,7 @@ async function presensipost(userNik, cookies, long = null, lat = null) {
 
 // -- --
 
-async function startIrk(current_date, discordId, userNik, userPassword, long = null, lat = null, discordClient = null) {
+async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null) {
   let logger = console.log;
 
   try {
@@ -378,7 +405,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, long = n
       jamKeluar = jamAbsen.machineout
     }
 
-    const presensipostResponse = await presensipost(userNik, cookies, long, lat);
+    const presensipostResponse = await presensipost(userNik, cookies, lat, lon);
     _tempResponseData = await presensipostResponse.json();
     if (!presensipostResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
@@ -424,8 +451,8 @@ async function addEditIrk(discordId, msgData) {
   let userPassword = null;
   let jamPagi = null;
   let jamSore = null;
-  let long = null;
   let lat = null;
+  let lon = null;
 
   if (msgData.length === 2 || msgData.length === 4 || msgData.length === 6) {
     userNik = msgData[0];
@@ -436,9 +463,18 @@ async function addEditIrk(discordId, msgData) {
       jamSore = msgData[3];
     }
 
-    if (msgData.length >= 6) {
-      long = msgData[4];
-      lat = msgData[5];
+    if (msgData.length === 5) {
+      const coord = parseOSM(osmUrl);
+      if (!coord.success) {
+        return `<@${discordId}> ${userNik} :: [MAPS] ${coord.error}`;
+      }
+
+      lat = coord.latitude;
+      lon = coord.longitude;
+    }
+    else if (msgData.length >= 6) {
+      lat = msgData[4];
+      lon = msgData[5];
     }
   }
   else {
@@ -452,20 +488,23 @@ async function addEditIrk(discordId, msgData) {
       'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore'
       => 1234567890 MyPass123$%^ 7 19
       -----
-      'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore<SPASI>LongitudeX<Spasi>LatitudeY'
-      => 1234567890 MyPass123$%^ 7 19 -0.9438507 -72.4522217
+      'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore<SPASI>urlOsm'
+      => 1234567890 MyPass123$%^ 7 19 https://www.openstreetmap.org/#map=5/-72.4522217/0.9438507
       -----
-      Silahkan Ambil Long(X) Lat(Y) Dari https://www.openstreetmap.org
+      'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore<SPASI>LatitudeY<SPASI>LongitudeX'
+      => 1234567890 MyPass123$%^ 7 19 -72.4522217 -0.9438507
+      -----
+      Silahkan Ambil Lat(Y) Lon(X) Dari https://www.openstreetmap.org/#map=ZOOM/LATITUDE/LONGITUDE
       -----
     `.split('\n').map(line => line.trim()).filter(line => line).join('\n');
   }
 
   let alamat = null;
-  if (long || lat) {
+  if (lat || lon) {
     try {
-      alamat = await cekAlamatReal(long, lat);
+      alamat = await cekAlamatReal(lat, lon);
       if (!alamat) {
-        return `<@${discordId}> ${userNik} :: [KOORDINAT] Alamat Tidak Tersedia, Silahkan Ambil Long(X) Lat(Y) Dari https://www.openstreetmap.org`;
+        return `<@${discordId}> ${userNik} :: [KOORDINAT] Alamat Tidak Tersedia, Silahkan Ambil Lat(Y) Lon(X) Dari https://www.openstreetmap.org`;
       }
     }
     catch (e) {
@@ -523,8 +562,8 @@ async function addEditIrk(discordId, msgData) {
     jsonData.irk.accounts[idx].password = userPassword;
     jsonData.irk.accounts[idx].targetPagi = jamPagi;
     jsonData.irk.accounts[idx].targetSore = jamSore;
-    jsonData.irk.accounts[idx].longitude = long;
     jsonData.irk.accounts[idx].latitude = lat;
+    jsonData.irk.accounts[idx].longitude = lon;
   }
   else {
     jsonData.irk.accounts.push({
@@ -533,13 +572,13 @@ async function addEditIrk(discordId, msgData) {
       password: userPassword,
       targetPagi: jamPagi,
       targetSore: jamSore,
-      longitude: long,
-      latitude: lat
+      latitude: lat,
+      longitude: lon
     });
   }
 
   fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
-  return `<@${discordId}> ${userNik} :: (Target Pagi = ${jamPagi}, Sore = ${jamSore} +:30/), [Long (X) = ${long}, Lat (Y) = ${lat}] ${alamat}`;
+  return `<@${discordId}> ${userNik} :: (Target Pagi = ${jamPagi}, Sore = ${jamSore} +:30/), [Lat (Y) = ${lat}, Lon (X) = ${lon}] ${alamat}`;
 }
 
 // --
