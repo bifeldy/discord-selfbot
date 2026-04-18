@@ -275,11 +275,11 @@ async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTi
   return fetch(url, options);
 }
 
-async function presensipost(userNik, cookies, long = '-0.9438507', lat = '-72.4522217') {
+async function presensipost(userNik, cookies, long = null, lat = null) {
   const url = `${baseUri}/presensi/post`;
 
-  const encLong = MASTER_KEY ? userLong : laraEncrypt(long);
-  const encLat = MASTER_KEY ? userLat : laraEncrypt(lat);
+  const encLong = MASTER_KEY ? userLong : laraEncrypt(long || '-0.9438507');
+  const encLat = MASTER_KEY ? userLat : laraEncrypt(lat || '-72.4522217');
 
   const options = {
     method: 'POST',
