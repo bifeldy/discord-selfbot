@@ -5,7 +5,7 @@ const { Client, TextChannel, version } = require('discord.js');
 const { fastify } = require('fastify');
 const fetch = require('node-fetch');
 
-const { addEditIrk, startCron } = require('./irk-absensi');
+const { addEditIrk, startCron, infoCoordAddr } = require('./irk-absensi');
 
 const jsonConfig = 'config.json';
 const jsonFile = fs.readFileSync(jsonConfig, { encoding: 'utf8' });
@@ -365,6 +365,11 @@ client.on('message', async message => {
         const msgData = message.content.slice(4).trim().split(' ').filter(d => d);
         const result = await addEditIrk(message.author.id, msgData);
         await message.channel.send(result);
+      }
+      else if (message.content.startsWith('loc ')) {
+        const urlCoord = message.content.slice(4).trim();
+        const result = await infoCoordAddr(urlCoord);
+        await message.channel.send(`\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``);
       }
 
       // You Tagged ~

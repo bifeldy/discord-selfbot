@@ -100,7 +100,7 @@ async function getNtpDate() {
     }
   }
 
-  throw new Error("Semua server NTP gagal dijangkau.");
+  throw new Error('Semua server NTP gagal dijangkau.');
 }
 
 async function getCurrentJakartaDate(ntpDate = null) {
@@ -165,27 +165,36 @@ function laraDecrypt(base64Payload) {
 }
 
 async function cekAlamatReal(lat, lon) {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
 
-  const options = {
-    method: 'GET',
-    headers: defaultHeader
-  };
+    const options = {
+      method: 'GET',
+      headers: defaultHeader
+    };
 
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`${response.status} - ${errorText}`);
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      displayName: data.display_name,
+      mapLinks: [
+        `https://www.google.com/maps?q=${lat},${lon}`,
+        `https://www.openstreetmap.org/search?query=${lat},${lon}`
+      ]
+    };
   }
-
-  const data = await response.json();
-  return {
-    displayName: data.display_name,
-    mapLinks: [
-      `https://www.google.com/maps?q=${numericLat},${numericLon}`,
-      `https://www.openstreetmap.org/search?query=${numericLat},${numericLon}`
-    ]
-  };
+  catch (e) {
+    return {
+      success: false,
+      message: e.message
+    };
+  }
 }
 
 function extractCoords(input) {
@@ -229,7 +238,7 @@ function extractCoords(input) {
     if (!lat || !lon) {
       return {
         success: false,
-        message: "URL tidak dikenali. Pastikan URL sudah 'Panjang'."
+        message: 'URL tidak dikenali. Pastikan URL sudah Benar.'
       };
     }
 
@@ -240,16 +249,24 @@ function extractCoords(input) {
       success: true,
       lat: numericLat.toString(),
       lon: numericLon.toString(),
-      isIndonesia: (numericLat < 6 && numericLat > -11) && (numericLon > 95 && numericLon < 141),
-      mapLinks: [
-        `https://www.google.com/maps?q=${numericLat},${numericLon}`,
-        `https://www.openstreetmap.org/search?query=${numericLat},${numericLon}`
-      ]
+      isIndonesia: (numericLat < 6 && numericLat > -11) && (numericLon > 95 && numericLon < 141)
     };
   }
   catch (e) {
-    return { success: false, message: "Error parsing: " + e.message };
+    return {
+      success: false,
+      message: e.message
+    };
   }
+}
+
+async function infoCoordAddr(input) {
+  const coord = extractCoords(input);
+  const addr = await cekAlamatReal(coord.lat, coord.lon);
+  return {
+    coord,
+    addr
+  };
 }
 
 // -- --
@@ -548,14 +565,9 @@ async function addEditIrk(discordId, msgData) {
 
   let alamat = null;
   if (lat || lon) {
-    try {
-      alamat = await cekAlamatReal(lat, lon);
-      if (!alamat) {
-        return `<@${discordId}> ${userNik} :: [KOORDINAT] Alamat Tidak Tersedia, Silahkan Ambil Lat(Y) Lon(X) Dari https://www.openstreetmap.org`;
-      }
-    }
-    catch (e) {
-      return `<@${discordId}> ${userNik} :: [ALAMAT] ${e.message}`;
+    alamat = await cekAlamatReal(lat, lon);
+    if (!alamat.success) {
+      return `<@${discordId}> ${userNik} :: [KOORDINAT] Alamat Tidak Tersedia, Silahkan Ambil Lat(Y) Lon(X) Dari URL OpenStreetMap / GoogleMap`;
     }
   }
 
@@ -844,5 +856,6 @@ function startCron(discordClient = null) {
 
 module.exports = {
   addEditIrk,
-  startCron
+  startCron,
+  infoCoordAddr
 }
