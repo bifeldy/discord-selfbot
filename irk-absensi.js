@@ -179,33 +179,76 @@ async function cekAlamatReal(lat, lon) {
   }
 
   const data = await response.json();
-  return data.display_name;
+  return {
+    displayName: data.display_name,
+    mapLinks: [
+      `https://www.google.com/maps?q=${numericLat},${numericLon}`,
+      `https://www.openstreetmap.org/search?query=${numericLat},${numericLon}`
+    ]
+  };
 }
 
-function parseOSM(url) {
+function extractCoords(input) {
   try {
-    const hash = url.split('#')[1];
+    let lat, lon;
+    const url = input.trim();
 
-    if (!hash || !hash.startsWith('map=')) {
-      throw new Error("Format URL tidak valid (harus mengandung #map=)");
+    if (url.match(/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/)) {
+      [lat, lon] = url.split(',').map(s => s.trim());
+    }
+    else if (url.includes('google.com/maps') || url.includes('maps.app.goo.gl')) {
+      const atMatch = url.match(/@([-\d.]+),([-\d.]+)/);
+      if (atMatch) {
+        lat = atMatch[1];
+        lon = atMatch[2];
+      }
+      else {
+        const urlObj = new URL(url.replace(/#.*$/, '')); // buang hash biar gak ganggu URLSearchParams
+        const q = urlObj.searchParams.get('q') ||
+          urlObj.searchParams.get('query') ||
+          urlObj.searchParams.get('ll');
+
+        if (q && q.includes(',')) {
+          [lat, lon] = q.split(',');
+        }
+      }
+    }
+    else if (url.includes('openstreetmap.org')) {
+      const hashMatch = url.match(/#map=\d+\/([-\d.]+)\/([-\d.]+)/);
+      if (hashMatch) {
+        lat = hashMatch[1];
+        lon = hashMatch[2];
+      }
+      else {
+        const urlObj = new URL(url);
+        lat = urlObj.searchParams.get('mlat') || urlObj.searchParams.get('lat');
+        lon = urlObj.searchParams.get('mlon') || urlObj.searchParams.get('lon');
+      }
     }
 
-    const parts = hash.replace('map=', '').split('/');
+    if (!lat || !lon) {
+      return {
+        success: false,
+        message: "URL tidak dikenali. Pastikan URL sudah 'Panjang'."
+      };
+    }
 
-    const zoom = parts[0];
-    const lat = parts[1];
-    const lon = parts[2];
+    const numericLat = parseFloat(lat);
+    const numericLon = parseFloat(lon);
 
     return {
       success: true,
-      zoom: zoom,
-      latitude: lat,
-      longitude: lon,
-      googleFormat: `${lat}, ${lon}`
+      lat: numericLat.toString(),
+      lon: numericLon.toString(),
+      isIndonesia: (numericLat < 6 && numericLat > -11) && (numericLon > 95 && numericLon < 141),
+      mapLinks: [
+        `https://www.google.com/maps?q=${numericLat},${numericLon}`,
+        `https://www.openstreetmap.org/search?query=${numericLat},${numericLon}`
+      ]
     };
   }
   catch (e) {
-    return { success: false, error: e.message };
+    return { success: false, message: "Error parsing: " + e.message };
   }
 }
 
@@ -468,13 +511,13 @@ async function addEditIrk(discordId, msgData) {
     }
 
     if (msgData.length === 5) {
-      const coord = parseOSM(osmUrl);
+      const coord = extractCoords(osmUrl);
       if (!coord.success) {
-        return `<@${discordId}> ${userNik} :: [MAPS] ${coord.error}`;
+        return `<@${discordId}> ${userNik} :: [MAPS] ${coord.message}`;
       }
 
-      lat = coord.latitude;
-      lon = coord.longitude;
+      lat = coord.lat;
+      lon = coord.lon;
     }
     else if (msgData.length >= 6) {
       lat = msgData[4];
@@ -582,7 +625,13 @@ async function addEditIrk(discordId, msgData) {
   }
 
   fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
-  return `<@${discordId}> ${userNik} :: (Target Pagi = ${jamPagi}, Sore = ${jamSore} +:30/), [Lat (Y) = ${lat}, Lon (X) = ${lon}] ${alamat}`;
+  return `
+    <@${discordId}> ${userNik}
+    (Target Pagi = ${jamPagi}, Sore = ${jamSore} +:30/)
+    [Lat (Y) = ${lat}, Lon (X) = ${lon}]
+    ${alamat.mapLinks.join('\n')}
+    ${alamat.displayName}
+  `.split('\n').map(line => line.trim()).filter(line => line).join('\n');
 }
 
 // --
