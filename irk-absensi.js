@@ -164,30 +164,58 @@ function laraDecrypt(base64Payload) {
   return decrypted;
 }
 
+const GOOGLE_MAPS_API_KEY = jsonData.gcpApiKey;
+
 async function cekAlamatReal(lat, lon) {
   try {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+    const osmUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+    const gMapUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${GOOGLE_MAPS_API_KEY}`;
 
     const options = {
       method: 'GET',
-      headers: defaultHeader
+      headers: defaultHeader,
     };
 
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    return {
+    const result = {
       success: true,
-      displayName: data.display_name,
+      openStreetMap: null,
+      googleMap: null,
       mapLinks: [
         `https://www.google.com/maps?q=${lat},${lon}`,
         `https://www.openstreetmap.org/search?query=${lat},${lon}`
       ]
     };
+
+    const [osmResponse, gMapResponse] = await Promise.all([
+      fetch(osmUrl, options),
+      fetch(gMapUrl, options)
+    ]);
+
+    if (!osmResponse.ok) {
+      const errorText = await osmResponse.text();
+      result.openStreetMap = `Error OSM: ${osmResponse.status} - ${errorText}`;
+    }
+    else {
+      const osmData = await osmResponse.json();
+      result.openStreetMap = osmData.display_name || "Alamat tidak ditemukan di OSM";
+    }
+
+    if (!gMapResponse.ok) {
+      const errorText = await gMapResponse.text();
+      result.googleMap = `Error GMap: ${gMapResponse.status} - ${errorText}`;
+    }
+    else {
+      const gMapData = await gMapResponse.json();
+
+      if (gMapData.status === 'OK') {
+        result.googleMap = gMapData.results[0].formatted_address;
+      }
+      else {
+        result.googleMap = `Google Status: ${gMapData.status}`;
+      }
+    }
+
+    return result;
   }
   catch (e) {
     return {
@@ -642,7 +670,8 @@ async function addEditIrk(discordId, msgData) {
     (Target Pagi = ${jamPagi}, Sore = ${jamSore} +:30/)
     [Lat (Y) = ${lat}, Lon (X) = ${lon}]
     ${alamat.mapLinks.join('\n')}
-    ${alamat.displayName}
+    OSM :: ${alamat.openStreetMap}
+    GM :: ${alamat.googleMap}
   `.split('\n').map(line => line.trim()).filter(line => line).join('\n');
 }
 
