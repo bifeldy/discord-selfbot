@@ -21,6 +21,7 @@
   "author": "Bifeldy",
   "license": "MIT",
   "dependencies": {
+    "async-mutex": "^0.5.0",
     "discord.js": "^11.6.4",
     "fastify": "^4.26.2",
     "node-cron": "^4.2.1",
