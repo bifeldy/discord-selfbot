@@ -3,13 +3,16 @@ const readline = require('node:readline');
 
 const { Client, TextChannel, version } = require('discord.js');
 const { fastify } = require('fastify');
+const { Mutex } = require('async-mutex');
+
 const fetch = require('node-fetch');
 
 const { addEditIrk, startCron, infoCoordAddr } = require('./irk-absensi');
 
+const mtx = new Mutex();
+
 const jsonConfig = 'config.json';
-const jsonFile = fs.readFileSync(jsonConfig, { encoding: 'utf8' });
-const jsonData = JSON.parse(jsonFile);
+let jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
 
 const server = new fastify({ logger: jsonData.logging });
 const client = new Client();
@@ -145,6 +148,290 @@ server.get('/', (req, res) => {
   `);
 });
 
+// Endpoint untuk menyimpan/mengupdate akun
+server.post('/api/account', async (req, res) => {
+  const release = await mtx.acquire();
+
+  try {
+    const payload = req.body;
+    const msgData = [
+      payload.nik,
+      payload.password,
+      payload.targetPagi,
+      payload.targetSore,
+      payload.latitude,
+      payload.longitude
+    ];
+
+    const result = await addEditIrk(null, msgData);
+
+    jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+
+    res.code(200).send({ success: true, message: result });
+  }
+  finally {
+    release();
+  }
+});
+
+// Proxy Endpoint: Pencarian Nama Jalan ke Koordinat (Google Maps)
+server.get('/api/search-address', async (req, res) => {
+  const query = req.query.q;
+  const apiKey = jsonData.gcpApiKey;
+
+  if (!query || !apiKey) return res.code(400).send({ error: 'Missing query or API Key' });
+
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}`;
+    const gMapRes = await fetch(url);
+    const data = await gMapRes.json();
+
+    if (data.status === 'OK' && data.results.length > 0) {
+      const location = data.results[0].geometry.location;
+      return res.code(200).send({
+        lat: location.lat,
+        lon: location.lng,
+        address: data.results[0].formatted_address
+      });
+    } else {
+      return res.code(404).send({ error: 'Alamat tidak ditemukan' });
+    }
+  } catch (e) {
+    return res.code(500).send({ error: e.message });
+  }
+});
+
+// Proxy Endpoint: Koordinat ke Nama Jalan (Google Maps)
+server.get('/api/reverse-geocode', async (req, res) => {
+  const { lat, lon } = req.query;
+  const apiKey = jsonData.gcpApiKey;
+
+  if (!lat || !lon || !apiKey) return res.code(400).send({ error: 'Missing lat/lon or API Key' });
+
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${apiKey}`;
+    const gMapRes = await fetch(url);
+    const data = await gMapRes.json();
+
+    if (data.status === 'OK' && data.results.length > 0) {
+      return res.code(200).send({ address: data.results[0].formatted_address });
+    } else {
+      return res.code(404).send({ error: 'Alamat tidak ditemukan' });
+    }
+  } catch (e) {
+    return res.code(500).send({ error: e.message });
+  }
+});
+
+server.get('/ui', (req, res) => {
+  const html = `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>IRK Auto-Absen</title>
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <style>
+        body { font-family: sans-serif; background-color: #2c2f33; color: white; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: #23272a; padding: 20px; border-radius: 8px; }
+        .form-row { display: flex; gap: 10px; margin-bottom: 15px; }
+        .form-group { flex: 1; margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 14px; color: #b9bbbe; }
+        input { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 4px; border: 1px solid #202225; background: #40444b; color: white; }
+        input:focus { outline: none; border-color: #7289da; }
+        button { width: 100%; padding: 12px; background: #5865F2; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; }
+        button:hover { background: #4752C4; }
+        
+        .search-container { display: flex; gap: 10px; margin-bottom: 10px; }
+        .search-container input { flex: 3; }
+        .search-container button { flex: 1; margin-top: 0; background: #3ba55c; }
+        .search-container button:hover { background: #2d7d46; }
+        
+        #map-osm { height: 300px; width: 100%; border-radius: 8px; margin-bottom: 15px; border: 2px solid #40444b; }
+
+        .btn-locate { background: #f04747; margin-bottom: 15px; }
+        .btn-locate:hover { background: #d84040; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h2>
+          <a href="https://discord.gg/aHCeSAaXTC" style="text-decoration: none; cursor: pointer; color: whitesmoke;">
+            📍 IRK Auto-Absen (Klik Untuk Lihat Log)
+          </a>
+        </h2>
+        <form id="irkForm">
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>NIK</label>
+              <input type="text" id="nik" placeholder="1234567890" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Password</label>
+              <input type="password" id="password" placeholder="***" required>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Target Masuk (Pagi)</label>
+              <input type="time" id="targetPagi" value="07:00" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Target Pulang (Sore)</label>
+              <input type="time" id="targetSore" value="19:30" required>
+            </div>
+          </div>
+
+          <label>Pilih Lokasi Absen (Peta & Search via Google Maps)</label>
+          <button type="button" class="btn-locate" onclick="getUserLocation()">🎯 Gunakan Lokasi Saat Ini (GPS)</button>
+
+          <div class="search-container">
+            <input type="text" id="searchBox" placeholder="Ketik nama jalan atau toko...">
+            <button type="button" onclick="searchAddress()">🔍 Cari</button>
+          </div>
+
+          <div id="map-osm"></div>
+
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Latitude (Y)</label>
+              <input type="text" id="latitude" readonly required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Longitude (X)</label>
+              <input type="text" id="longitude" readonly required>
+            </div>
+          </div>
+
+          <button type="submit">💾 Simpan Data Akun</button>
+        </form>
+      </div>
+
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+      <script>
+        let currentLat = -6.216996;
+        let currentLon = 106.715548;
+        
+        let osmMap, osmMarker;
+
+        // --- MASTER FUNCTION: UPDATE SEMUA ---
+        async function setLocation(lat, lon, fetchAddress = true) {
+            currentLat = parseFloat(lat);
+            currentLon = parseFloat(lon);
+            
+            // 1. Update Input Box
+            document.getElementById('latitude').value = currentLat.toFixed(7);
+            document.getElementById('longitude').value = currentLon.toFixed(7);
+
+            // 2. Update OSM Pin & View
+            if(osmMap && osmMarker) {
+                osmMarker.setLatLng([currentLat, currentLon]);
+                osmMap.setView([currentLat, currentLon], 16);
+            }
+
+            // 3. Update Search Box via Proxy (Google Maps Backend)
+            if (fetchAddress) {
+                document.getElementById('searchBox').value = "Mencari alamat via Google...";
+                try {
+                    const res = await fetch(\`/api/reverse-geocode?lat=\${currentLat}&lon=\${currentLon}\`);
+                    const data = await res.json();
+                    if (data.address) {
+                        document.getElementById('searchBox').value = data.address;
+                    } else {
+                        document.getElementById('searchBox').value = "Alamat tidak ditemukan";
+                    }
+                } catch (err) {
+                    document.getElementById('searchBox').value = "Gagal memuat alamat dari Server";
+                }
+            }
+        }
+
+        // --- INISIALISASI PETA OSM ---
+        osmMap = L.map('map-osm').setView([currentLat, currentLon], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(osmMap);
+        osmMarker = L.marker([currentLat, currentLon], { draggable: true }).addTo(osmMap);
+
+        osmMarker.on('dragend', function (e) {
+            setLocation(e.target.getLatLng().lat, e.target.getLatLng().lng);
+        });
+        osmMap.on('click', function (e) {
+            setLocation(e.latlng.lat, e.latlng.lng);
+        });
+
+        // --- FITUR AUTO LOCATE (GEOLOCATION) ---
+        function getUserLocation() {
+            if (navigator.geolocation) {
+                document.getElementById('searchBox').value = "Menunggu GPS HP/Komputer...";
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        setLocation(position.coords.latitude, position.coords.longitude);
+                    },
+                    function(error) {
+                        alert("Gagal mendapatkan lokasi GPS.");
+                        document.getElementById('searchBox').value = "";
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            }
+        }
+
+        // --- PENCARIAN ALAMAT (Via Proxy Server) ---
+        async function searchAddress() {
+            const query = document.getElementById('searchBox').value;
+            if (!query) return;
+            
+            const btn = document.querySelector('.search-container button');
+            btn.innerText = "⏳";
+            
+            try {
+                const res = await fetch(\`/api/search-address?q=\${encodeURIComponent(query)}\`);
+                const data = await res.json();
+                
+                if (data.lat && data.lon) {
+                    setLocation(data.lat, data.lon, false);
+                    document.getElementById('searchBox').value = data.address;
+                } else {
+                    alert("Alamat tidak ditemukan di sistem Google Maps.");
+                }
+            } catch (err) {
+                alert("Gagal menghubungi server pencarian.");
+            }
+            btn.innerText = "🔍 Cari";
+        }
+
+        window.onload = function() {
+            setLocation(currentLat, currentLon);
+        };
+
+        // --- SUBMIT DATA ---
+        document.getElementById('irkForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const payload = {
+            nik: document.getElementById('nik').value,
+            password: document.getElementById('password').value,
+            targetPagi: document.getElementById('targetPagi').value,
+            targetSore: document.getElementById('targetSore').value,
+            latitude: document.getElementById('latitude').value,
+            longitude: document.getElementById('longitude').value
+          };
+          const response = await fetch('/api/account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const result = await response.json();
+          alert(result.message);
+        });
+      </script>
+    </body>
+    </html>
+  `;
+  res.code(200).header('Content-Type', 'text/html').send(html);
+});
+
 client.on('ready', async () => {
   console.log(`[✨ User Logged In] ${client.user.username}#${client.user.discriminator}`);
   console.log(`[🎉 Discord API & Token] ${version} :: ${client.token}`);
@@ -229,15 +516,28 @@ client.on('message', async message => {
 
       // Add Emoji List For Ping
       else if (message.content.startsWith('ping ')) {
-        const emojiToAdd = message.content.slice(5).trim().split(' ');
-        for (const emoji of emojiToAdd) {
-          if (!emojiPing.includes(emoji)) {
-            emojiPing.push(emoji);
+        const release = await mutex.acquire();
+
+        try {
+          jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+
+          const emojiToAdd = message.content.slice(5).trim().split(' ');
+          for (const emoji of emojiToAdd) {
+            if (!emojiPing.includes(emoji)) {
+              emojiPing.push(emoji);
+            }
           }
+
+          jsonData.ping = emojiPing;
+
+          fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
+          jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+
+          await message.channel.send(`Totals :: ${emojiPing.join('')}`);
         }
-        jsonData.ping = emojiPing;
-        fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
-        await message.channel.send(`Totals :: ${emojiPing.join('')}`);
+        finally {
+          release();
+        }
       }
 
       // Upload A Files
@@ -388,14 +688,14 @@ client.on('message', async message => {
 
 async function start() {
   try {
-    await client.login(DISCORD_LOGIN_TOKEN);
+    // await client.login(DISCORD_LOGIN_TOKEN);
     await server.listen({ host: '0.0.0.0', port: process.env['PORT'] || 3001 }, (err, addr) => {
       if (err) {
         start();
         console.error(err);
       }
       else {
-        startCron(client);
+        // startCron(client);
         console.log(`[🌐 Server Listen] ${addr}`);
       }
     });

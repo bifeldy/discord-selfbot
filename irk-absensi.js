@@ -5,6 +5,8 @@ const cron = require('node-cron');
 const fetch = require('node-fetch');
 const ntpClient = require('ntp-client');
 
+const { Mutex } = require('async-mutex');
+
 /**
  * 
  * KOCAK .. BALIKAN HTTP STATUS CODE SELALU 200
@@ -17,15 +19,14 @@ const ntpClient = require('ntp-client');
 
 let isJobRunning = false;
 
+const mtx = new Mutex();
+
 // --
 
 const jsonConfig = 'config.json';
-const jsonFile = fs.readFileSync(jsonConfig, { encoding: 'utf8' });
-const jsonData = JSON.parse(jsonFile);
+let jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
 
 // -- --
-
-const baseUri = jsonData.irk.baseUri;
 
 const defaultHeader = {
   'user-agent': 'Mobile-app',
@@ -66,7 +67,7 @@ const toMinutes = (timeStr) => {
 // -- --
 
 const ntpServers = [
-  'ntp.bmkg.go.id',
+  'time.bmkg.go.id',
   'time.cloudflare.com',
   'time.google.com'
 ];
@@ -127,13 +128,11 @@ function getFormattedDate(date) {
 
 // --
 
-const MASTER_KEY = jsonData.irk.masterKey;
-
 const userLat = 'eyJpdiI6ImRQM3hIRnI5SDREMThXaWdVZU0rWGc9PSIsInZhbHVlIjoicFRLcVBvd1ZZV3Z1cnM0cHYzZ2pzUT09In0=';
 const userLon = 'eyJpdiI6InJJSEh2QjFLL2prd05keWZBRHpTN0E9PSIsInZhbHVlIjoiSXZjcVMwWW9OMVIwbXJJWXJOMHNTQT09In0=';
 
 function laraEncrypt(plainText) {
-  const key = Buffer.from(MASTER_KEY, 'base64');
+  const key = Buffer.from(jsonData.irk.masterKey, 'base64');
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
 
@@ -149,7 +148,7 @@ function laraEncrypt(plainText) {
 }
 
 function laraDecrypt(base64Payload) {
-  const key = Buffer.from(MASTER_KEY, 'base64');
+  const key = Buffer.from(jsonData.irk.masterKey, 'base64');
 
   const jsonString = Buffer.from(base64Payload, 'base64').toString('utf8');
   const data = JSON.parse(jsonString);
@@ -164,12 +163,10 @@ function laraDecrypt(base64Payload) {
   return decrypted;
 }
 
-const GOOGLE_MAPS_API_KEY = jsonData.gcpApiKey;
-
 async function cekAlamatReal(lat, lon) {
   try {
     const osmUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
-    const gMapUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${GOOGLE_MAPS_API_KEY}`;
+    const gMapUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${jsonData.gcpApiKey}`;
 
     const options = {
       method: 'GET',
@@ -300,7 +297,7 @@ async function infoCoordAddr(input) {
 // -- --
 
 async function login(userNik, userPassword) {
-  const url = `${baseUri}/login`;
+  const url = `${jsonData.irk.baseUri}/login`;
 
   const options = {
     method: 'POST',
@@ -320,7 +317,7 @@ async function login(userNik, userPassword) {
 }
 
 async function worker(userNik, cookies) {
-  const url = `${baseUri}/worker`;
+  const url = `${jsonData.irk.baseUri}/worker`;
 
   const options = {
     method: 'POST',
@@ -342,7 +339,7 @@ async function worker(userNik, cookies) {
 }
 
 async function presensiwfh(current_date, userNik, cookies, bulan = null, tahun = null) {
-  const url = `${baseUri}/presensiwfh`;
+  const url = `${jsonData.irk.baseUri}/presensiwfh`;
 
   const options = {
     method: 'POST',
@@ -366,7 +363,7 @@ async function presensiwfh(current_date, userNik, cookies, bulan = null, tahun =
 }
 
 async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTimeOnly = true) {
-  const url = `${baseUri}/presensi/get`;
+  const url = `${jsonData.irk.baseUri}/presensi/get`;
 
   const options = {
     method: 'POST',
@@ -395,10 +392,10 @@ async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTi
 }
 
 async function presensipost(userNik, cookies, lat = null, lon = null) {
-  const url = `${baseUri}/presensi/post`;
+  const url = `${jsonData.irk.baseUri}/presensi/post`;
 
-  const encLat = MASTER_KEY ? laraEncrypt(lat || '-72.4522217') : userLat;
-  const encLong = MASTER_KEY ? laraEncrypt(lon || '-0.9438507') : userLon;
+  const encLat = jsonData.irk.masterKey ? laraEncrypt(lat || '-72.4522217') : userLat;
+  const encLong = jsonData.irk.masterKey ? laraEncrypt(lon || '-0.9438507') : userLon;
 
   const options = {
     method: 'POST',
@@ -539,140 +536,154 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
 }
 
 async function addEditIrk(discordId, msgData) {
-  let userNik = null;
-  let userPassword = null;
-  let jamPagi = null;
-  let jamSore = null;
-  let lat = null;
-  let lon = null;
+  const release = await mtx.acquire();
 
-  if (msgData.length === 2 || msgData.length === 4 || msgData.length === 5 || msgData.length === 6) {
-    userNik = msgData[0];
-    userPassword = msgData[1];
+  try {
+    jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
 
-    if (msgData.length >= 4) {
-      jamPagi = msgData[2];
-      jamSore = msgData[3];
-    }
+    let userNik = null;
+    let userPassword = null;
+    let jamPagi = null;
+    let jamSore = null;
+    let lat = null;
+    let lon = null;
 
-    if (msgData.length === 5) {
-      const coord = extractCoords(osmUrl);
-      if (!coord.success) {
-        return `<@${discordId}> ${userNik} :: [MAPS] ${coord.message}`;
+    if (msgData.length === 2 || msgData.length === 4 || msgData.length === 5 || msgData.length === 6) {
+      userNik = msgData[0];
+      userPassword = msgData[1];
+
+      if (msgData.length >= 4) {
+        jamPagi = msgData[2];
+        jamSore = msgData[3];
       }
 
-      lat = coord.lat;
-      lon = coord.lon;
+      if (msgData.length === 5) {
+        const coord = extractCoords(osmUrl);
+        if (!coord.success) {
+          return `<@${discordId}> ${userNik} :: [MAPS] ${coord.message}`;
+        }
+
+        lat = coord.lat;
+        lon = coord.lon;
+      }
+      else if (msgData.length >= 6) {
+        lat = msgData[4];
+        lon = msgData[5];
+      }
     }
-    else if (msgData.length >= 6) {
-      lat = msgData[4];
-      lon = msgData[5];
+    else if (discordId) {
+      return `
+        -----
+        ❗ Format Yang Dibutuhkan 2/4/5/6 Data (Depannya Harus Tag Saya) <@306076547616473089>
+        -----
+        'userNik<SPASI>password'
+        => 1234567890 MyPass123$%^
+        -----
+        'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore'
+        => 1234567890 MyPass123$%^ 7 19
+        -----
+        'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore<SPASI>urlOsm'
+        => 1234567890 MyPass123$%^ 7 19 https://www.openstreetmap.org/#map=5/-72.4522217/0.9438507
+        -----
+        'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore<SPASI>LatitudeY<SPASI>LongitudeX'
+        => 1234567890 MyPass123$%^ 7 19 -72.4522217 -0.9438507
+        -----
+        Silahkan Ambil Lat(Y) Lon(X) Dari https://www.openstreetmap.org/#map=ZOOM/LATITUDE/LONGITUDE
+        -----
+      `.split('\n').map(line => line.trim()).filter(line => line).join('\n');
     }
-  }
-  else {
+    else {
+      return '❗ Format Salah / Data Tidak Lengkap!';
+    }
+
+    let alamat = null;
+    if (lat || lon) {
+      alamat = await cekAlamatReal(lat, lon);
+      if (!alamat.success) {
+        return `<@${discordId}> ${userNik} :: [KOORDINAT] Alamat Tidak Tersedia, Silahkan Ambil Lat(Y) Lon(X) Dari URL OpenStreetMap / GoogleMap`;
+      }
+    }
+
+    const loginResponse = await login(userNik, userPassword);
+    _tempResponseData = await loginResponse.json();
+    if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
+      const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
+      return `<@${discordId}> ${userNik} :: [LOGIN] ${errMsg}`;
+    }
+
+    const maxPagi = toMinutes('09:00');
+    const minSore = toMinutes('16:59');
+
+    if (jamPagi) {
+      if (!isValidTime(jamPagi)) {
+        return `<@${discordId}> ${userNik} :: [PAGI] Format 'hh24:mm' (Pakai : Titik 2) Tidak Valid`;
+      }
+
+      if (jamPagi >= maxPagi && jamPagi <= minSore) {
+        return `<@${discordId}> ${userNik} :: [PAGI] Waktu Berada Di Rentang Waktu Yang Salah / Telat Masuk`;
+      }
+
+      if (!jamPagi.includes(':')) {
+        jamPagi = `${jamPagi.toString().padStart(2, '0')}:00`;
+      }
+    }
+    else {
+      jamPagi = null;
+    }
+
+    if (jamSore) {
+      if (!isValidTime(jamSore)) {
+        return `<@${discordId}> ${userNik} :: [SORE] Format 'hh24:mm' Tidak Valid`;
+      }
+
+      if (jamSore >= maxPagi && jamSore <= minSore) {
+        return `<@${discordId}> ${userNik} :: [SORE] Waktu Berada Di Rentang Waktu Yang Salah / Pulang Lebih Awal`;
+      }
+
+      if (!jamSore.includes(':')) {
+        jamSore = `${jamSore.toString().padStart(2, '0')}:00`;
+      }
+    }
+    else {
+      jamSore = null;
+    }
+
+    const idx = jsonData.irk.accounts.findIndex(d => d.nik === userNik);
+    if (idx >= 0) {
+      jsonData.irk.accounts[idx].authorId = discordId;
+      jsonData.irk.accounts[idx].password = userPassword;
+      jsonData.irk.accounts[idx].targetPagi = jamPagi;
+      jsonData.irk.accounts[idx].targetSore = jamSore;
+      jsonData.irk.accounts[idx].latitude = lat;
+      jsonData.irk.accounts[idx].longitude = lon;
+    }
+    else {
+      jsonData.irk.accounts.push({
+        authorId: discordId,
+        nik: userNik,
+        password: userPassword,
+        targetPagi: jamPagi,
+        targetSore: jamSore,
+        latitude: lat,
+        longitude: lon
+      });
+    }
+
+    fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
+    jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+
     return `
-      -----
-      ❗ Format Yang Dibutuhkan 2/4/5/6 Data (Depannya Harus Tag Saya) <@306076547616473089>
-      -----
-      'userNik<SPASI>password'
-      => 1234567890 MyPass123$%^
-      -----
-      'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore'
-      => 1234567890 MyPass123$%^ 7 19
-      -----
-      'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore<SPASI>urlOsm'
-      => 1234567890 MyPass123$%^ 7 19 https://www.openstreetmap.org/#map=5/-72.4522217/0.9438507
-      -----
-      'userNik<SPASI>password<SPASI>jamMenitPagi<SPASI>jamMenitSore<SPASI>LatitudeY<SPASI>LongitudeX'
-      => 1234567890 MyPass123$%^ 7 19 -72.4522217 -0.9438507
-      -----
-      Silahkan Ambil Lat(Y) Lon(X) Dari https://www.openstreetmap.org/#map=ZOOM/LATITUDE/LONGITUDE
-      -----
+      <@${discordId}> ${userNik}
+      (Target Pagi = ${jamPagi}, Sore = ${jamSore} +:30/)
+      [Lat (Y) = ${lat}, Lon (X) = ${lon}]
+      ${alamat.mapLinks.join('\n')}
+      OSM :: ${alamat.openStreetMap}
+      GM :: ${alamat.googleMap}
     `.split('\n').map(line => line.trim()).filter(line => line).join('\n');
   }
-
-  let alamat = null;
-  if (lat || lon) {
-    alamat = await cekAlamatReal(lat, lon);
-    if (!alamat.success) {
-      return `<@${discordId}> ${userNik} :: [KOORDINAT] Alamat Tidak Tersedia, Silahkan Ambil Lat(Y) Lon(X) Dari URL OpenStreetMap / GoogleMap`;
-    }
+  finally {
+    release();
   }
-
-  const loginResponse = await login(userNik, userPassword);
-  _tempResponseData = await loginResponse.json();
-  if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
-    const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
-    return `<@${discordId}> ${userNik} :: [LOGIN] ${errMsg}`;
-  }
-
-  const maxPagi = toMinutes('09:00');
-  const minSore = toMinutes('16:59');
-
-  if (jamPagi) {
-    if (!isValidTime(jamPagi)) {
-      return `<@${discordId}> ${userNik} :: [PAGI] Format 'hh24:mm' (Pakai : Titik 2) Tidak Valid`;
-    }
-
-    if (jamPagi >= maxPagi && jamPagi <= minSore) {
-      return `<@${discordId}> ${userNik} :: [PAGI] Waktu Berada Di Rentang Waktu Yang Salah / Telat Masuk`;
-    }
-
-    if (!jamPagi.includes(':')) {
-      jamPagi = `${jamPagi.toString().padStart(2, '0')}:00`;
-    }
-  }
-  else {
-    jamPagi = null;
-  }
-
-  if (jamSore) {
-    if (!isValidTime(jamSore)) {
-      return `<@${discordId}> ${userNik} :: [SORE] Format 'hh24:mm' Tidak Valid`;
-    }
-
-    if (jamSore >= maxPagi && jamSore <= minSore) {
-      return `<@${discordId}> ${userNik} :: [SORE] Waktu Berada Di Rentang Waktu Yang Salah / Pulang Lebih Awal`;
-    }
-
-    if (!jamSore.includes(':')) {
-      jamSore = `${jamSore.toString().padStart(2, '0')}:00`;
-    }
-  }
-  else {
-    jamSore = null;
-  }
-
-  const idx = jsonData.irk.accounts.findIndex(d => d.nik === userNik);
-  if (idx >= 0) {
-    jsonData.irk.accounts[idx].authorId = discordId;
-    jsonData.irk.accounts[idx].password = userPassword;
-    jsonData.irk.accounts[idx].targetPagi = jamPagi;
-    jsonData.irk.accounts[idx].targetSore = jamSore;
-    jsonData.irk.accounts[idx].latitude = lat;
-    jsonData.irk.accounts[idx].longitude = lon;
-  }
-  else {
-    jsonData.irk.accounts.push({
-      authorId: discordId,
-      nik: userNik,
-      password: userPassword,
-      targetPagi: jamPagi,
-      targetSore: jamSore,
-      latitude: lat,
-      longitude: lon
-    });
-  }
-
-  fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
-  return `
-    <@${discordId}> ${userNik}
-    (Target Pagi = ${jamPagi}, Sore = ${jamSore} +:30/)
-    [Lat (Y) = ${lat}, Lon (X) = ${lon}]
-    ${alamat.mapLinks.join('\n')}
-    OSM :: ${alamat.openStreetMap}
-    GM :: ${alamat.googleMap}
-  `.split('\n').map(line => line.trim()).filter(line => line).join('\n');
 }
 
 // --
@@ -858,6 +869,7 @@ function startCron(discordClient = null) {
 
     try {
       isJobRunning = true;
+      jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
       await delay(15 * 1000);
       const current_date = await getCurrentJakartaDate();
       await runCronJobSchedulerIrk(current_date, discordClient);
