@@ -242,12 +242,12 @@ server.get('/ui', (req, res) => {
         input:focus { outline: none; border-color: #7289da; }
         button { width: 100%; padding: 12px; background: #5865F2; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; }
         button:hover { background: #4752C4; }
-        
+
         .search-container { display: flex; gap: 10px; margin-bottom: 10px; }
         .search-container input { flex: 3; }
         .search-container button { flex: 1; margin-top: 0; background: #3ba55c; }
         .search-container button:hover { background: #2d7d46; }
-        
+
         #map-osm { height: 300px; width: 100%; border-radius: 8px; margin-bottom: 15px; border: 2px solid #40444b; }
 
         .btn-locate { background: #f04747; margin-bottom: 15px; }
@@ -272,7 +272,7 @@ server.get('/ui', (req, res) => {
               <input type="password" id="password" placeholder="***" required>
             </div>
           </div>
-          
+
           <div class="form-row">
             <div class="form-group" style="margin-bottom: 0;">
               <label>Target Masuk (Pagi)</label>
@@ -329,14 +329,14 @@ server.get('/ui', (req, res) => {
       <script>
         let currentLat = -6.216996;
         let currentLon = 106.715548;
-        
+
         let osmMap, osmMarker;
 
         // --- MASTER FUNCTION: UPDATE SEMUA ---
         async function setLocation(lat, lon, fetchAddress = true) {
             currentLat = parseFloat(lat);
             currentLon = parseFloat(lon);
-            
+
             // 1. Update Input Box
             document.getElementById('latitude').value = currentLat.toFixed(7);
             document.getElementById('longitude').value = currentLon.toFixed(7);
@@ -397,14 +397,14 @@ server.get('/ui', (req, res) => {
         async function searchAddress() {
             const query = document.getElementById('searchBox').value;
             if (!query) return;
-            
+
             const btn = document.querySelector('.search-container button');
             btn.innerText = "⏳";
-            
+
             try {
                 const res = await fetch(\`/api/search-address?q=\${encodeURIComponent(query)}\`);
                 const data = await res.json();
-                
+
                 if (data.lat && data.lon) {
                     setLocation(data.lat, data.lon, false);
                     document.getElementById('searchBox').value = data.address;

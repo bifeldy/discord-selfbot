@@ -8,13 +8,13 @@ const ntpClient = require('ntp-client');
 const { Mutex } = require('async-mutex');
 
 /**
- * 
+ *
  * KOCAK .. BALIKAN HTTP STATUS CODE SELALU 200
  * TAPI PAKENYA DI BODY
  * WKWKWK
- * 
+ *
  * https://www.reddit.com/r/ProgrammerHumor/comments/jnb9fa/when_you_only_validate_the_http_code_of_the/
- * 
+ *
  */
 
 let isJobRunning = false;
