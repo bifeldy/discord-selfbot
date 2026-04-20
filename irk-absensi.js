@@ -197,7 +197,7 @@ async function cekAlamatReal(lat, lon) {
     }
     else {
       const osmData = await osmResponse.json();
-      result.openStreetMap = osmData.display_name || "Alamat tidak ditemukan di OSM";
+      result.openStreetMap = osmData.display_name || 'Alamat tidak ditemukan di OSM';
     }
 
     if (!gMapResponse.ok) {
@@ -546,7 +546,7 @@ async function addEditIrk(discordId, msgData) {
   let lat = null;
   let lon = null;
 
-  if (msgData.length === 2 || msgData.length === 4 || msgData.length === 6) {
+  if (msgData.length === 2 || msgData.length === 4 || msgData.length === 5 || msgData.length === 6) {
     userNik = msgData[0];
     userPassword = msgData[1];
 
@@ -572,7 +572,7 @@ async function addEditIrk(discordId, msgData) {
   else {
     return `
       -----
-      ❗ Format Yang Dibutuhkan 2/4/6 Data (Depannya Harus Tag Saya) <@306076547616473089>
+      ❗ Format Yang Dibutuhkan 2/4/5/6 Data (Depannya Harus Tag Saya) <@306076547616473089>
       -----
       'userNik<SPASI>password'
       => 1234567890 MyPass123$%^
