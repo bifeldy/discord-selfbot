@@ -258,7 +258,7 @@ server.get('/ui', (req, res) => {
       <div class="container">
         <h2>
           <a href="https://discord.gg/aHCeSAaXTC" style="text-decoration: none; cursor: pointer; color: whitesmoke;">
-            📍 IRK Auto-Absen (Klik Untuk Lihat Log)
+            📍 IRK Auto-Absen
           </a>
         </h2>
         <form id="irkForm">
@@ -307,6 +307,21 @@ server.get('/ui', (req, res) => {
 
           <button type="submit">💾 Simpan Data Akun</button>
         </form>
+        <h5 style="text-align: center;">
+          <a href="https://discord.gg/aHCeSAaXTC" style="text-decoration: none; cursor: pointer; color: whitesmoke;">
+            Butuh Lihat Log Absensi ? https://discord.gg/aHCeSAaXTC !
+          </a>
+        </h5>
+        <h5 style="text-align: center;">
+          <a href="https://www.fanshare.id" style="text-decoration: none; cursor: pointer; color: whitesmoke;">
+            Butuh Tempat File Sharing ? https://www.fanshare.id !
+          </a>
+        </h5>
+        <h5 style="text-align: center;">
+          <a href="https://www.fansub.id" style="text-decoration: none; cursor: pointer; color: whitesmoke;">
+            Butuh Database Anime / Drama ? https://www.fansub.id !
+          </a>
+        </h5>
       </div>
 
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -688,14 +703,14 @@ client.on('message', async message => {
 
 async function start() {
   try {
-    // await client.login(DISCORD_LOGIN_TOKEN);
+    await client.login(DISCORD_LOGIN_TOKEN);
     await server.listen({ host: '0.0.0.0', port: process.env['PORT'] || 3001 }, (err, addr) => {
       if (err) {
         start();
         console.error(err);
       }
       else {
-        // startCron(client);
+        startCron(client);
         console.log(`[🌐 Server Listen] ${addr}`);
       }
     });
