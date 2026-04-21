@@ -17,7 +17,8 @@ const { Mutex } = require('async-mutex');
  *
  */
 
-let isJobRunning = false;
+let isPresensiRunning = false;
+let isCleanupRunning = false;
 
 const mtx = new Mutex();
 
@@ -883,13 +884,13 @@ function startCron(discordClient = null) {
 
   // Setiap Menit Ke-0
   cron.schedule('* * * * *', async () => {
-    if (isJobRunning) {
-      console.log('Previous job still running. Skipping this run.');
+    if (isPresensiRunning) {
+      console.log('Presensi Masih Berjalan ...');
       return;
     }
 
     try {
-      isJobRunning = true;
+      isPresensiRunning = true;
       jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
       await delay(15 * 1000);
       const current_date = await getCurrentJakartaDate();
@@ -899,19 +900,28 @@ function startCron(discordClient = null) {
       console.error('IRK failed', err);
     }
     finally {
-      isJobRunning = false;
+      isPresensiRunning = false;
     }
   });
 
   // Setiap Menit Ke-0
   cron.schedule('* * * * *', async () => {
+    if (isCleanupRunning) {
+      console.log('Cleanup Masih Berjalan ...');
+      return;
+    }
+
     try {
+      isCleanupRunning = true;
       await delay(15 * 1000);
       const nowJakarta = await getCurrentJakartaDate();
       await runCronJobSchedulerCleanUp(nowJakarta, discordClient);
     }
     catch (e) {
       console.error('Fetching history failed', e);
+    }
+    finally {
+      isCleanupRunning = false;
     }
   });
 }
