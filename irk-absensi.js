@@ -765,8 +765,8 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null) {
         credential.authorId,
         credential.nik,
         credential.password,
-        credential.longitude,
         credential.latitude,
+        credential.longitude,
         discordClient
       );
 
