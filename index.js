@@ -277,10 +277,10 @@ server.get('/ui', (req, res) => {
             <div style="text-align: center;">
               Karena ini hanya untuk biar ga lupa presensi saja,
               sebagai alat bantu dan bukan yang utama,
-              disarankan untuk mengatur jam berangkat sesiang,
-              mungkin mendekati waktu masuk,
-              dan jam pulang semalam mungkin,
-              mendekati ganti hari
+              disarankan untuk mengatur jam berangkat sesiang mungkin,
+              misalnya mepet dan mendekati waktu masuk,
+              lalu untuk jam pulang juga semalam mungkin,
+              sebagai contoh mendekati ganti hari
               ~ (｡&gt;&#xFE4F;&lt;｡) ~
             </div>
           </div>
@@ -296,7 +296,7 @@ server.get('/ui', (req, res) => {
             </div>
           </div>
 
-          <label>Pilih Lokasi Absen (Peta [OpenStreetMap] & Search [GoogleMaps])</label>
+          <label>Pilih Lokasi Absen (Peta [OpenStreetMap] & Pencarian GeoLoc [GoogleMaps])</label>
           <button type="button" class="btn-locate" onclick="getUserLocation()">🎯 Gunakan Lokasi Saat Ini (GPS)</button>
 
           <div class="search-container">
