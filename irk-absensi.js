@@ -394,8 +394,11 @@ async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTi
 async function presensipost(userNik, cookies, lat = null, lon = null) {
   const url = `${jsonData.irk.baseUri}/presensi/post`;
 
-  const encLat = jsonData.irk.masterKey ? laraEncrypt(lat || '-72.4522217') : userLat;
-  const encLong = jsonData.irk.masterKey ? laraEncrypt(lon || '-0.9438507') : userLon;
+  const jitterLat = (parseFloat(lat || '-72.4522217') + (Math.random() - 0.5) * 0.00006).toFixed(7);
+  const jitterLon = (parseFloat(lon || '0.9438507') + (Math.random() - 0.5) * 0.00006).toFixed(7);
+
+  const encLat = jsonData.irk.masterKey ? laraEncrypt(jitterLat) : userLat;
+  const encLong = jsonData.irk.masterKey ? laraEncrypt(jitterLon) : userLon;
 
   const options = {
     method: 'POST',
