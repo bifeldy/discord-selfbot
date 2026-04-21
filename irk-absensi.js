@@ -494,12 +494,30 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
       jamKeluar = jamAbsen.machineout
     }
 
+    presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, false);
+    _tempResponseData = await presensigetResponse.json();
+    if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
+      const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
+      logger(`<@${discordId}> ${userNik} :: [PRESENSIGET_HISTORY] ${errMsg}`);
+      return false;
+    }
+
+    if (_tempResponseData.data.length === 1) {
+      const riwayatAbsenSore = _tempResponseData.data[0];
+      if (riwayatAbsenSore.location_out?.length > 0) {
+        logger(`<@${discordId}> ${userNik} :: [PRESENSIGET_HISTORY] Sudah Ada Data Presensi Sore (Manual)`);
+        return true;
+      }
+    }
+
     const presensipostResponse = await presensipost(userNik, cookies, lat, lon);
     _tempResponseData = await presensipostResponse.json();
     if (!presensipostResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
-      logger(`<@${discordId}> ${userNik} :: [PRESENSIPOST] ${errMsg}`);
-      return errMsg?.toUpperCase().trim() === 'SUDAH ADA DATA PRESENSI MASUK UNTUK HARI INI' ? true : false;
+      const retVal = errMsg?.toUpperCase().trim() === 'SUDAH ADA DATA PRESENSI MASUK UNTUK HARI INI' ? true : false;
+      const msgInfo = retVal ? 'Sudah Ada Data Presensi Pagi (Manual)' : errMsg;
+      logger(`<@${discordId}> ${userNik} :: [PRESENSIPOST] ${msgInfo}`);
+      return retVal;
     }
 
     presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, false);
@@ -510,7 +528,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
       return false;
     }
 
-    if (_tempResponseData.data.length <= 0) {
+    if (_tempResponseData.data.length !== 1) {
       logger(`<@${discordId}> ${userNik} :: [JADWAL] Belum Ada Data WFH, Periksa Juga Tanggal Untuk Ikut Ke Asia/Jakarta ~`);
       return true;
     }
