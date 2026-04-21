@@ -274,17 +274,29 @@ server.get('/ui', (req, res) => {
           </div>
 
           <div class="form-row">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Target Masuk (Pagi)</label>
-              <input type="time" id="targetPagi" value="07:00" required>
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Target Pulang (Sore)</label>
-              <input type="time" id="targetSore" value="19:30" required>
+            <div style="text-align: center;">
+              Karena ini hanya untuk biar ga lupa presensi saja,
+              sebagai alat bantu dan bukan yang utama,
+              disarankan untuk mengatur jam berangkat sesiang,
+              mungkin mendekati waktu masuk,
+              dan jam pulang semalam mungkin,
+              mendekati ganti hari
+              ~ (｡&gt;&#xFE4F;&lt;｡) ~
             </div>
           </div>
 
-          <label>Pilih Lokasi Absen (Peta & Search via Google Maps)</label>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Target Masuk (Pagi)</label>
+              <input type="time" id="targetPagi" value="07:59" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Target Pulang (Sore)</label>
+              <input type="time" id="targetSore" value="23:59" required>
+            </div>
+          </div>
+
+          <label>Pilih Lokasi Absen (Peta [OpenStreetMap] & Search [GoogleMaps])</label>
           <button type="button" class="btn-locate" onclick="getUserLocation()">🎯 Gunakan Lokasi Saat Ini (GPS)</button>
 
           <div class="search-container">
@@ -327,8 +339,8 @@ server.get('/ui', (req, res) => {
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
       <script>
-        let currentLat = -6.216996;
-        let currentLon = 106.715548;
+        let currentLat = -6.1105416;
+        let currentLon = 106.7393686;
 
         let osmMap, osmMarker;
 
