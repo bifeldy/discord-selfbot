@@ -540,12 +540,12 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     const riwayatAbsen = _tempResponseData.data[0];
     const absenMasukJam = riwayatAbsen.machinein || '??';
     const absenKeluarJam = riwayatAbsen.machineout || '??';
-    const absenMasukLokasi = riwayatAbsen.location_in?.join(', ') || '??, ??';
-    const absenKeluarLokasi = riwayatAbsen.location_out?.join(', ') || '??, ??';
+    // const absenMasukLokasi = riwayatAbsen.location_in?.join(', ') || '??, ??';
+    // const absenKeluarLokasi = riwayatAbsen.location_out?.join(', ') || '??, ??';
     logger(`
       <@${discordId}> ${userNik} :: ${dayName}
-      [BERANGKAT] ${jamMasuk} => ${absenMasukJam} | (${absenMasukLokasi})
-      [PULANG] ${jamKeluar} => ${absenKeluarJam} | (${absenKeluarLokasi})
+      [BERANGKAT] ${jamMasuk} => ${absenMasukJam}
+      [PULANG] ${jamKeluar} => ${absenKeluarJam}
     `.split('\n').map(line => line.trim()).filter(line => line).join('\n'));
 
     return true;
