@@ -696,7 +696,7 @@ client.on('message', async message => {
       else if (message.content.startsWith('loc ')) {
         const urlCoord = message.content.slice(4).trim();
         const result = await infoCoordAddr(urlCoord);
-        await message.channel.send(`\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``);
+        await message.channel.send(`<@${message.author.id}>\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``);
       }
 
       // You Tagged ~
