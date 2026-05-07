@@ -853,7 +853,12 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
       const candidate = tsJakarta >= startTs && // After or at 00:00 yesterday
         tsJakarta <= endTs &&   // Before or at 23:59 yesterday
         msg.author.id === discordClient.user.id &&
-        msg.content?.startsWith(`<@`);
+        msg.content?.startsWith(`<@`) &&
+        (
+          msg.content?.toLowerCase().includes('Failed'.toLowerCase()) ||
+          msg.content?.toLowerCase().includes('Error'.toLowerCase()) ||
+          msg.content?.toLowerCase().includes('Gagal'.toLowerCase())
+        );
 
       if (candidate) {
         toDelete.push(msg);
