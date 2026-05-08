@@ -859,7 +859,8 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
         if (
           !msg.content.toLowerCase().includes('Failed'.toLowerCase()) &&
           !msg.content.toLowerCase().includes('Error'.toLowerCase()) &&
-          !msg.content.toLowerCase().includes('Gagal'.toLowerCase())
+          !msg.content.toLowerCase().includes('Gagal'.toLowerCase()) &&
+          !msg.content.toLowerCase().includes('Login'.toLowerCase())
         ) {
           toDelete.push(msg);
         }
