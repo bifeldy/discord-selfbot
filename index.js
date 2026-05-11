@@ -348,8 +348,8 @@ server.get('/ui', (req, res) => {
           📜 Live Log Absensi
         </h3>
 
-        <div id="logBox" style="background: #18191c; padding: 15px; border-radius: 8px; height: 300px; overflow-y: auto; font-family: monospace; font-size: 13px; color: #a3a6aa; white-space: pre-wrap; border: 1px solid #202225;">
-          Memuat log...
+        <div id="logBox" style="background: #18191c; padding: 15px; border-radius: 8px; height: 128px; overflow-y: auto; font-family: monospace; font-size: 13px; color: #a3a6aa; white-space: pre-wrap; border: 1px solid #202225;">
+          Mohon menunggu ...
         </div>
 
         <h5 style="text-align: center; margin-top: 20px;">
@@ -495,7 +495,7 @@ server.get('/ui', (req, res) => {
             const logBox = document.getElementById('logBox');
 
             if (logs.length === 0) {
-              logBox.innerHTML = '<i>Belum ada log aktivitas absensi hari ini...</i>';
+              logBox.innerHTML = '<i>Belum ada aktivitas ...</i>';
               return;
             }
 
