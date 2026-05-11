@@ -27,6 +27,11 @@ const mtx = new Mutex();
 const jsonConfig = 'config.json';
 let jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
 
+const logFile = 'irk-logs.json';
+if (!fs.existsSync(logFile)) {
+  fs.writeFileSync(logFile, '[]');
+}
+
 // -- --
 
 const defaultHeader = {
@@ -125,6 +130,33 @@ function getFormattedDate(date) {
   const day = String(date.getDate()).padStart(2, '0');
 
   return `${year}-${month}-${day}`;
+}
+
+// --
+
+async function writeLogToFile(logMsg) {
+  const release = await mtx.acquire();
+
+  try {
+    let logs = [];
+    if (fs.existsSync(logFile)) {
+      const fileData = fs.readFileSync(logFile, { encoding: 'utf8' });
+      logs = fileData.trim() ? JSON.parse(fileData) : [];
+    }
+
+    const now = await getCurrentJakartaDate();
+    const formattedTime = new Date(now).toLocaleString('id-ID');
+
+    logs.push({ time: formattedTime, message: logMsg });
+
+    fs.writeFileSync(logFile, JSON.stringify(logs, null, 2));
+  }
+  catch (err) {
+    console.error('Gagal menulis log ke file:', err);
+  }
+  finally {
+    release();
+  }
 }
 
 // --
@@ -421,16 +453,23 @@ async function presensipost(userNik, cookies, lat = null, lon = null) {
 // -- --
 
 async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null) {
-  let logger = console.log;
+  const logger = async (msg) => {
+    console.log(msg);
+    await writeLogToFile(msg);
+
+    if (discordClient) {
+      try {
+        const guild = discordClient.guilds.get(jsonData.irk.guildId);
+        const channel = guild.channels.get(jsonData.irk.channelId);
+        await channel.send(msg);
+      }
+      catch (e) {
+        console.error('Gagal mengirim ke Discord:', e.message);
+      }
+    }
+  };
 
   try {
-    if (discordClient) {
-      // IDM-IT-SD-03 :: 🚮︱bot-spam
-      const guild = discordClient.guilds.get(jsonData.irk.guildId);
-      const channel = guild.channels.get(jsonData.irk.channelId);
-      logger = channel.send.bind(channel);
-    }
-
     let _tempResponseData = null;
 
     const loginResponse = await login(userNik, userPassword);
@@ -887,7 +926,7 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
 // --
 
 function startCron(discordClient = null) {
-  // Server Restart 6 Jam Sekali :: Hindari detik / menit ke-0
+  // Server Restart 6 Jam Sekali (Waktu JST) :: Hindari detik / menit ke-0
 
   // Setiap Menit Ke-0
   cron.schedule('* * * * *', async () => {
@@ -930,6 +969,23 @@ function startCron(discordClient = null) {
     finally {
       isCleanupRunning = false;
     }
+  });
+
+  cron.schedule('0 0 * * *', async () => {
+    const release = await mtx.acquire();
+
+    try {
+      fs.writeFileSync(logFile, '[]');
+      console.log('[🧹 Log File] File log telah dibersihkan (Reset Jam 00:00)');
+    }
+    catch (e) {
+      console.error('Gagal membersihkan log file:', e);
+    }
+    finally {
+      release();
+    }
+  }, {
+    timezone: 'Asia/Jakarta' // Jalannya berarti di jam 2 Pagi JST
   });
 }
 

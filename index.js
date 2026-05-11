@@ -193,10 +193,12 @@ server.get('/api/search-address', async (req, res) => {
         lon: location.lng,
         address: data.results[0].formatted_address
       });
-    } else {
+    }
+    else {
       return res.code(404).send({ error: 'Alamat tidak ditemukan' });
     }
-  } catch (e) {
+  }
+  catch (e) {
     return res.code(500).send({ error: e.message });
   }
 });
@@ -215,11 +217,30 @@ server.get('/api/reverse-geocode', async (req, res) => {
 
     if (data.status === 'OK' && data.results.length > 0) {
       return res.code(200).send({ address: data.results[0].formatted_address });
-    } else {
+    }
+    else {
       return res.code(404).send({ error: 'Alamat tidak ditemukan' });
     }
-  } catch (e) {
+  }
+  catch (e) {
     return res.code(500).send({ error: e.message });
+  }
+});
+
+server.get('/api/logs', async (req, res) => {
+  try {
+    const logFile = 'irk-logs.json';
+    if (!fs.existsSync(logFile)) {
+      return res.code(200).send([]);
+    }
+
+    const fileData = fs.readFileSync(logFile, { encoding: 'utf8' });
+    const logs = fileData.trim() ? JSON.parse(fileData) : [];
+
+    res.code(200).send(logs);
+  }
+  catch (err) {
+    res.code(500).send({ error: err.message });
   }
 });
 
@@ -261,6 +282,7 @@ server.get('/ui', (req, res) => {
             📍 IRK Auto-Absen
           </a>
         </h2>
+
         <form id="irkForm">
           <div class="form-row">
             <div class="form-group" style="margin-bottom: 0;">
@@ -319,16 +341,29 @@ server.get('/ui', (req, res) => {
 
           <button type="submit">💾 Simpan Data Akun</button>
         </form>
-        <h5 style="text-align: center;">
+
+        <hr style="border-color: #40444b; margin: 30px 0 15px 0;" />
+
+        <h3 style="margin-bottom: 10px;">
+          📜 Live Log Absensi
+        </h3>
+
+        <div id="logBox" style="background: #18191c; padding: 15px; border-radius: 8px; height: 300px; overflow-y: auto; font-family: monospace; font-size: 13px; color: #a3a6aa; white-space: pre-wrap; border: 1px solid #202225;">
+          Memuat log...
+        </div>
+
+        <h5 style="text-align: center; margin-top: 20px;">
           <a href="https://discord.gg/aHCeSAaXTC" style="text-decoration: none; cursor: pointer; color: whitesmoke;">
-            Butuh Lihat Log Absensi ? https://discord.gg/aHCeSAaXTC !
+            Butuh Lihat Log Absensi (Detail) Lainnya ? https://discord.gg/aHCeSAaXTC !
           </a>
         </h5>
+
         <h5 style="text-align: center;">
           <a href="https://www.fanshare.id" style="text-decoration: none; cursor: pointer; color: whitesmoke;">
             Butuh Tempat File Sharing ? https://www.fanshare.id !
           </a>
         </h5>
+
         <h5 style="text-align: center;">
           <a href="https://www.fansub.id" style="text-decoration: none; cursor: pointer; color: whitesmoke;">
             Butuh Database Anime / Drama ? https://www.fansub.id !
@@ -344,39 +379,36 @@ server.get('/ui', (req, res) => {
 
         let osmMap, osmMarker;
 
-        // --- MASTER FUNCTION: UPDATE SEMUA ---
         async function setLocation(lat, lon, fetchAddress = true) {
-            currentLat = parseFloat(lat);
-            currentLon = parseFloat(lon);
+          currentLat = parseFloat(lat);
+          currentLon = parseFloat(lon);
 
-            // 1. Update Input Box
-            document.getElementById('latitude').value = currentLat.toFixed(7);
-            document.getElementById('longitude').value = currentLon.toFixed(7);
+          document.getElementById('latitude').value = currentLat.toFixed(7);
+          document.getElementById('longitude').value = currentLon.toFixed(7);
 
-            // 2. Update OSM Pin & View
-            if(osmMap && osmMarker) {
-                osmMarker.setLatLng([currentLat, currentLon]);
-                osmMap.setView([currentLat, currentLon], 16);
+          if(osmMap && osmMarker) {
+            osmMarker.setLatLng([currentLat, currentLon]);
+            osmMap.setView([currentLat, currentLon], 16);
+          }
+
+          if (fetchAddress) {
+            document.getElementById('searchBox').value = 'Mencari alamat via Google ...';
+            try {
+              const res = await fetch(\`/api/reverse-geocode?lat=\${currentLat}&lon=\${currentLon}\`);
+              const data = await res.json();
+              if (data.address) {
+                document.getElementById('searchBox').value = data.address;
+              }
+              else {
+                document.getElementById('searchBox').value = 'Alamat tidak ditemukan';
+              }
             }
-
-            // 3. Update Search Box via Proxy (Google Maps Backend)
-            if (fetchAddress) {
-                document.getElementById('searchBox').value = "Mencari alamat via Google...";
-                try {
-                    const res = await fetch(\`/api/reverse-geocode?lat=\${currentLat}&lon=\${currentLon}\`);
-                    const data = await res.json();
-                    if (data.address) {
-                        document.getElementById('searchBox').value = data.address;
-                    } else {
-                        document.getElementById('searchBox').value = "Alamat tidak ditemukan";
-                    }
-                } catch (err) {
-                    document.getElementById('searchBox').value = "Gagal memuat alamat dari Server";
-                }
+            catch (err) {
+              document.getElementById('searchBox').value = 'Gagal memuat alamat dari Server';
             }
+          }
         }
 
-        // --- INISIALISASI PETA OSM ---
         osmMap = L.map('map-osm').setView([currentLat, currentLon], 16);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(osmMap);
         osmMarker = L.marker([currentLat, currentLon], { draggable: true }).addTo(osmMap);
@@ -384,56 +416,58 @@ server.get('/ui', (req, res) => {
         osmMarker.on('dragend', function (e) {
             setLocation(e.target.getLatLng().lat, e.target.getLatLng().lng);
         });
+
         osmMap.on('click', function (e) {
             setLocation(e.latlng.lat, e.latlng.lng);
         });
 
-        // --- FITUR AUTO LOCATE (GEOLOCATION) ---
         function getUserLocation() {
-            if (navigator.geolocation) {
-                document.getElementById('searchBox').value = "Menunggu GPS HP/Komputer...";
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        setLocation(position.coords.latitude, position.coords.longitude);
-                    },
-                    function(error) {
-                        alert("Gagal mendapatkan lokasi GPS.");
-                        document.getElementById('searchBox').value = "";
-                    },
-                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-                );
-            }
+          if (navigator.geolocation) {
+            document.getElementById('searchBox').value = 'Menunggu GPS HP/Komputer...';
+            navigator.geolocation.getCurrentPosition(
+              function(position) {
+                setLocation(position.coords.latitude, position.coords.longitude);
+              },
+              function(error) {
+                alert('Gagal mendapatkan lokasi GPS.');
+                document.getElementById('searchBox').value = '';
+              },
+              { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+          }
         }
 
-        // --- PENCARIAN ALAMAT (Via Proxy Server) ---
         async function searchAddress() {
-            const query = document.getElementById('searchBox').value;
-            if (!query) return;
+          const query = document.getElementById('searchBox').value;
+          if (!query) {
+            return;
+          }
 
-            const btn = document.querySelector('.search-container button');
-            btn.innerText = "⏳";
+          const btn = document.querySelector('.search-container button');
+          btn.innerText = "⏳";
 
-            try {
-                const res = await fetch(\`/api/search-address?q=\${encodeURIComponent(query)}\`);
-                const data = await res.json();
+          try {
+            const res = await fetch(\`/api/search-address?q=\${encodeURIComponent(query)}\`);
+            const data = await res.json();
 
-                if (data.lat && data.lon) {
-                    setLocation(data.lat, data.lon, false);
-                    document.getElementById('searchBox').value = data.address;
-                } else {
-                    alert("Alamat tidak ditemukan di sistem Google Maps.");
-                }
-            } catch (err) {
-                alert("Gagal menghubungi server pencarian.");
+            if (data.lat && data.lon) {
+              setLocation(data.lat, data.lon, false);
+              document.getElementById('searchBox').value = data.address;
             }
-            btn.innerText = "🔍 Cari";
+            else {
+              alert('Alamat tidak ditemukan di sistem Google Maps.');
+            }
+          }
+          catch (err) {
+            alert('Gagal menghubungi server pencarian.');
+          }
+          btn.innerText = '🔍 Cari';
         }
 
         window.onload = function() {
-            setLocation(currentLat, currentLon);
+          setLocation(currentLat, currentLon);
         };
 
-        // --- SUBMIT DATA ---
         document.getElementById('irkForm').addEventListener('submit', async (e) => {
           e.preventDefault();
           const payload = {
@@ -452,6 +486,41 @@ server.get('/ui', (req, res) => {
           const result = await response.json();
           alert(result.message);
         });
+
+        async function fetchLogs() {
+          try {
+            const res = await fetch('/api/logs');
+            const logs = await res.json();
+
+            const logBox = document.getElementById('logBox');
+
+            if (logs.length === 0) {
+              logBox.innerHTML = '<i>Belum ada log aktivitas absensi hari ini...</i>';
+              return;
+            }
+
+            let htmlStr = '';
+            logs.forEach(l => {
+                let msg = l.message.replace(/<@[0-9]+>/g, '[@User]');
+                htmlStr += '<div style="margin-bottom: 8px;">' +
+                  '<span style="color: #5865F2;">[' + l.time + ']</span> ' +
+                  '<span style="color: #dcddde;">' + msg + '</span>' +
+                  '</div>';
+            });
+
+            const isScrolledToBottom = logBox.scrollHeight - logBox.clientHeight <= logBox.scrollTop + 10;
+            logBox.innerHTML = htmlStr;
+            if (isScrolledToBottom) {
+              logBox.scrollTop = logBox.scrollHeight;
+            }
+          }
+          catch (err) {
+            console.error('Gagal load log:', err);
+          }
+        }
+
+        fetchLogs();
+        setInterval(fetchLogs, 10000);
       </script>
     </body>
     </html>
