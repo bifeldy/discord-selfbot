@@ -554,7 +554,7 @@ server.get('/ui', (req, res) => {
           }
 
           const btn = document.querySelector('.search-container button');
-          btn.innerText = "⏳";
+          btn.innerText = '⏳';
 
           try {
             const res = await fetch(\`/api/search-address?q=\${encodeURIComponent(query)}\`);
@@ -603,7 +603,7 @@ server.get('/ui', (req, res) => {
             body: JSON.stringify(payload)
           });
           const result = await response.json();
-          const mauNotif = confirm("🔔 Mau aktifkan Notifikasi untuk NIK ini?\n\n" + result.message);
+          const mauNotif = confirm('🔔 Mau aktifkan Notifikasi untuk NIK ini?\n\n' + result.message);
           if (mauNotif) {
             requestNotifPermission();
           }
@@ -645,30 +645,30 @@ server.get('/ui', (req, res) => {
             if (subscription) {
               if (inputNik === registeredNik) {
                 // Sesuai: Terdaftar untuk NIK ini
-                btn.innerText = "🔔 Push Notif Aktif!";
-                btn.style.background = "#4f545c"; // Abu-abu
+                btn.innerText = '🔔 Push Notif Aktif!';
+                btn.style.background = '#4f545c'; // Abu-abu
               }
               else {
                 // Tidak Sesuai: Terdaftar tapi untuk NIK lain (atau kolom NIK kosong)
-                btn.innerText = "⚠️ Notif NIK Lain Aktif";
-                btn.style.background = "#faa61a"; // Oranye
+                btn.innerText = '⚠️ Notif NIK Lain Aktif';
+                btn.style.background = '#faa61a'; // Oranye
               }
             }
             else {
               // Belum terdaftar push sama sekali
-              btn.innerText = "🔔 Aktifkan Notifikasi";
-              btn.style.background = "#3ba55c"; // Hijau
+              btn.innerText = '🔔 Aktifkan Notifikasi';
+              btn.style.background = '#3ba55c'; // Hijau
             }
           }
           catch (err) {
-            console.error("Gagal cek status push:", err);
+            console.error('Gagal cek status push:', err);
           }
         }
 
         async function requestNotifPermission() {
           const nik = document.getElementById('nik').value.trim();
           if (!nik) {
-            return alert("Silahkan ketik NIK kamu dulu di form atas!");
+            return alert('Silahkan ketik NIK kamu dulu di form atas!');
           }
 
           localStorage.setItem('irk_saved_nik', nik);
@@ -676,20 +676,20 @@ server.get('/ui', (req, res) => {
           if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             if (isIOS) {
-              return alert("Untuk pengguna iPhone/iPad:\n\n1. Tekan tombol Share (Bagikan) di bawah.\n2. Pilih 'Tambah ke Layar Utama' (Add to Home Screen).\n3. Buka web ini dari icon di layar utama, lalu aktifkan notifikasi dari sana.");
+              return alert('Untuk pengguna iPhone/iPad:\n\n1. Tekan tombol Share (Bagikan) di bawah.\n2. Pilih "Tambah ke Layar Utama" (Add to Home Screen).\n3. Buka web ini dari icon di layar utama, lalu aktifkan notifikasi dari sana.');
             }
             else {
-              return alert("Browser kamu tidak mendukung Web Push Notification. Harap gunakan Chrome / Edge / Firefox terbaru.");
+              return alert('Browser kamu tidak mendukung Web Push Notification. Harap gunakan Chrome / Edge / Firefox terbaru.');
             }
           }
 
           const permission = await Notification.requestPermission();
           if (permission !== 'granted') {
-            return alert("Izin notifikasi ditolak oleh browser.");
+            return alert('Izin notifikasi ditolak oleh browser.');
           }
 
           try {
-            document.getElementById('btnNotif').innerText = "⏳ Sedang Menghubungkan ...";
+            document.getElementById('btnNotif').innerText = '⏳ Sedang Menghubungkan ...';
             const register = await navigator.serviceWorker.register('/sw.js');
 
             const response = await fetch('/api/vapidPublicKey');
@@ -709,20 +709,20 @@ server.get('/ui', (req, res) => {
             const subData = await subRes.json();
 
             if (subData.success) {
-              alert("Mantap! Web Push berhasil diaktifkan. Kamu sekarang bisa close tab ini dan notifikasi akan tetap masuk.");
-              document.getElementById('btnNotif').innerText = "🔔 Push Notif Aktif!";
-              document.getElementById('btnNotif').style.background = "#4f545c";
+              alert('Mantap! Web Push berhasil diaktifkan. Kamu sekarang bisa close tab ini dan notifikasi akan tetap masuk.');
+              document.getElementById('btnNotif').innerText = '🔔 Push Notif Aktif!';
+              document.getElementById('btnNotif').style.background = '#4f545c';
               localStorage.setItem('irk_registered_nik', nik);
               checkPushStatus();
             }
             else {
-              alert("Error: " + subData.error);
-              document.getElementById('btnNotif').innerText = "🔔 Aktifkan Notifikasi";
+              alert('Error: ' + subData.error);
+              document.getElementById('btnNotif').innerText = '🔔 Aktifkan Notifikasi';
             }
           }
           catch (err) {
             console.error(err);
-            alert("Gagal mengaktifkan notifikasi.");
+            alert('Gagal mengaktifkan notifikasi.');
           }
         }
 
