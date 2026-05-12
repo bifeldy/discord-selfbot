@@ -289,7 +289,7 @@ server.post('/api/subscribe', async (req, res) => {
       res.code(200).send({ success: true });
     }
     else {
-      res.code(404).send({ error: 'NIK belum disimpan. Simpan data akun dulu.' });
+      res.code(404).send({ error: 'NIK belum terdaftar, silahkan simpan data presensi terlebih dahulu!' });
     }
   } catch (err) {
     res.code(500).send({ error: err.message });
@@ -437,19 +437,22 @@ server.get('/ui', (req, res) => {
           <button type="submit">💾 Simpan Data Akun</button>
         </form>
 
-        <hr style="border-color: #40444b; margin: 30px 0 15px 0;" />
+        <hr style="border-color: #40444b; margin: 15px 0 15px 0;" />
 
-        <h3 style="margin-bottom: 10px;">
-          📜 Live Log Absensi
-        </h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="margin: 0;">
+            📜 Live Log Absensi
+          </h3>
+          <button type="button" id="btnNotif" onclick="requestNotifPermission()" style="width: auto; padding: 6px 12px; font-size: 12px; background: #3ba55c; margin-top: 0;">
+            🔔 Aktifkan Notifikasi
+          </button>
+        </div>
 
         <div id="logBox" style="background: #18191c; padding: 15px; border-radius: 8px; height: 128px; overflow-y: auto; font-family: monospace; font-size: 13px; color: #a3a6aa; white-space: pre-wrap; border: 1px solid #202225;">
           Mohon menunggu ...
         </div>
 
-        <div style="margin-top: 10px; text-align: right;">
-          <button type="button" id="btnNotif" onclick="requestNotifPermission()" style="width: auto; padding: 6px 12px; font-size: 12px; background: #3ba55c;">🔔 Aktifkan Notifikasi</button>
-        </div>
+        <hr style="border-color: #40444b; margin: 15px 0 15px 0;" />
 
         <h5 style="text-align: center; margin-top: 20px;">
           <a href="https://discord.gg/aHCeSAaXTC" style="text-decoration: none; cursor: pointer; color: whitesmoke;">
@@ -610,8 +613,10 @@ server.get('/ui', (req, res) => {
         async function requestNotifPermission() {
           const nik = document.getElementById('nik').value.trim();
           if (!nik) {
-            return alert("Silahkan ketik NIK kamu dulu di form atas lalu tekan 'Simpan Data Akun'!");
+            return alert("Silahkan ketik NIK kamu dulu di form atas!");
           }
+
+          localStorage.setItem('irk_saved_nik', nik);
 
           if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             return alert("Browser kamu tidak mendukung Web Push Notification.");
