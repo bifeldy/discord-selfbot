@@ -26,6 +26,7 @@
     "fastify": "^4.26.2",
     "node-cron": "^4.2.1",
     "node-fetch": "^2.7.0",
-    "ntp-client": "^0.5.3"
+    "ntp-client": "^0.5.3",
+    "web-push": "^3.6.7"
   }
 }
