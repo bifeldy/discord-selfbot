@@ -501,7 +501,7 @@ server.get('/ui', (req, res) => {
 
             let htmlStr = '';
             logs.forEach(l => {
-                let msg = l.message.replace(/<@[0-9]+>/g, '[@User]');
+                let msg = l.message.replace(/<@[0-9]+>/g, '[@DiscordUser]');
                 htmlStr += '<div style="margin-bottom: 8px;">' +
                   '<span style="color: #5865F2;">[' + l.time + ']</span> ' +
                   '<span style="color: #dcddde;">' + msg + '</span>' +
