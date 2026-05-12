@@ -351,6 +351,10 @@ server.get('/ui', (req, res) => {
       <link rel="apple-touch-startup-image" href="https://www.fansub.id/favicon.ico" />
       <meta name="msapplication-square310x310logo" content="https://www.fansub.id/favicon.ico" />
       <meta name="twitter:image" content="https://www.fansub.id/assets/img/favicon.png" />
+      <meta name="apple-mobile-web-app-capable" content="yes" />
+      <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      <meta name="apple-mobile-web-app-title" content="IRK Absen" />
+      <meta name="mobile-web-app-capable" content="yes" />
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <style>
         body { font-family: sans-serif; background-color: #2c2f33; color: white; padding: 20px; }
