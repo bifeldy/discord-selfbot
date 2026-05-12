@@ -643,6 +643,7 @@ server.get('/ui', (req, res) => {
               }
             }
             else {
+              // Belum terdaftar push sama sekali
               btn.innerText = "🔔 Aktifkan Notifikasi";
               btn.style.background = "#3ba55c"; // Hijau (Standar)
             }
