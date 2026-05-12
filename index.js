@@ -676,7 +676,7 @@ server.get('/ui', (req, res) => {
           if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             if (isIOS) {
-              return alert('Untuk pengguna iPhone/iPad:\n\n1. Tekan tombol Share (Bagikan) di bawah.\n2. Pilih "Tambah ke Layar Utama" (Add to Home Screen).\n3. Buka web ini dari icon di layar utama, lalu aktifkan notifikasi dari sana.');
+              return alert('Untuk pengguna iPhone/iPad:\\n\\n1. Tekan tombol Share (Bagikan) di bawah.\\n2. Pilih "Tambah ke Layar Utama" (Add to Home Screen).\\n3. Buka web ini dari icon di layar utama, lalu aktifkan notifikasi dari sana.');
             }
             else {
               return alert('Browser kamu tidak mendukung Web Push Notification. Harap gunakan Chrome / Edge / Firefox terbaru.');
