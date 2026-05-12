@@ -737,7 +737,9 @@ async function addEditIrk(discordId, msgData) {
 
     const idx = jsonData.irk.accounts.findIndex(d => d.nik === userNik);
     if (idx >= 0) {
-      jsonData.irk.accounts[idx].authorId = discordId;
+      if (discordId) {
+        jsonData.irk.accounts[idx].authorId = discordId;
+      }
       jsonData.irk.accounts[idx].password = userPassword;
       jsonData.irk.accounts[idx].targetPagi = jamPagi;
       jsonData.irk.accounts[idx].targetSore = jamSore;
