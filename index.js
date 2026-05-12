@@ -7,6 +7,7 @@ const { fastify } = require('fastify');
 const { Mutex } = require('async-mutex');
 
 const fetch = require('node-fetch');
+const webpush = require('web-push');
 
 const { addEditIrk, startCron, infoCoordAddr } = require('./irk-absensi');
 
@@ -14,6 +15,19 @@ const mtx = new Mutex();
 
 const jsonConfig = 'config.json';
 let jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+
+if (!jsonData.vapid) {
+  const vapidKeys = webpush.generateVAPIDKeys();
+  jsonData.vapid = vapidKeys;
+  fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
+  console.log('[🔑 VAPID Keys] Kunci baru berhasil di-generate dan disimpan ke config!');
+}
+
+webpush.setVapidDetails(
+  `mailto:${jsonData.botEmail}`,
+  jsonData.vapid.publicKey,
+  jsonData.vapid.privateKey
+);
 
 const server = new fastify({ logger: jsonData.logging });
 const client = new Client();
@@ -255,6 +269,69 @@ server.get('/api/hash', (req, res) => {
   res.code(200).send({ hash });
 });
 
+server.get('/api/vapidPublicKey', (req, res) => {
+  res.send({ publicKey: jsonData.vapid.publicKey });
+});
+
+server.post('/api/subscribe', async (req, res) => {
+  const release = await mtx.acquire();
+  try {
+    const { nik, subscription } = req.body;
+    if (!nik || !subscription) return res.code(400).send({ error: 'Data tidak lengkap' });
+
+    let config = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+    const idx = config.irk.accounts.findIndex(a => a.nik === nik);
+
+    if (idx !== -1) {
+      config.irk.accounts[idx].pushSubscription = subscription; // Simpan token browser!
+      fs.writeFileSync(jsonConfig, JSON.stringify(config, null, 2));
+      jsonData = config; // Update state memori global
+      res.code(200).send({ success: true });
+    }
+    else {
+      res.code(404).send({ error: 'NIK belum disimpan. Simpan data akun dulu.' });
+    }
+  } catch (err) {
+    res.code(500).send({ error: err.message });
+  } finally {
+    release();
+  }
+});
+
+server.get('/sw.js', (req, res) => {
+  const swCode = `
+    self.addEventListener('push', function(event) {
+      let data = { title: 'IRK Absen Update', body: 'Ada aktivitas baru.' };
+      if (event.data) {
+        data = event.data.json();
+      }
+
+      const options = {
+        body: data.body,
+        icon: 'https://www.fansub.id/assets/img/favicon.png',
+        badge: 'https://www.fansub.id/assets/img/favicon.png',
+        vibrate: [200, 100, 200]
+      };
+
+      event.waitUntil(
+        self.registration.showNotification(data.title, options)
+      );
+    });
+
+    self.addEventListener('notificationclick', function(event) {
+      event.notification.close();
+      event.waitUntil(clients.matchAll({ type: 'window' }).then(clientsArr => {
+        const hadWindowToFocus = clientsArr.some(windowClient => windowClient.url === '/' ? (windowClient.focus(), true) : false);
+        if (!hadWindowToFocus) {
+          clients.openWindow('/');
+        }
+      }));
+    });
+  `;
+
+  res.header('Content-Type', 'application/javascript').send(swCode);
+});
+
 server.get('/ui', (req, res) => {
   const html = `
     <!DOCTYPE html>
@@ -263,6 +340,13 @@ server.get('/ui', (req, res) => {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>IRK Auto-Absen</title>
+      <link rel="shortcut icon" href="https://www.fansub.id/favicon.ico" />
+      <link rel="icon" href="https://www.fansub.id/favicon.ico" />
+      <link rel="icon" sizes="192x192" href="https://www.fansub.id/favicon.ico" />
+      <link rel="apple-touch-icon" href="https://www.fansub.id/favicon.ico" />
+      <link rel="apple-touch-startup-image" href="https://www.fansub.id/favicon.ico" />
+      <meta name="msapplication-square310x310logo" content="https://www.fansub.id/favicon.ico" />
+      <meta name="twitter:image" content="https://www.fansub.id/assets/img/favicon.png" />
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <style>
         body { font-family: sans-serif; background-color: #2c2f33; color: white; padding: 20px; }
@@ -510,43 +594,67 @@ server.get('/ui', (req, res) => {
 
         let lastLogCount = 0;
 
-        function requestNotifPermission() {
-          if (!("Notification" in window)) {
-            alert("Browser ini tidak mendukung notifikasi desktop.");
-            return;
+        function urlB64ToUint8Array(base64String) {
+          const padding = '='.repeat((4 - base64String.length % 4) % 4);
+          const base64 = (base64String + padding).replace(/\\-/g, '+').replace(/_/g, '/');
+          const rawData = window.atob(base64);
+          const outputArray = new Uint8Array(rawData.length);
+
+          for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
           }
 
-          if (Notification.permission === "granted") {
-            alert("Notifikasi sudah aktif!");
-          }
-            else if (Notification.permission !== "denied") {
-            Notification.requestPermission().then(permission => {
-              if (permission === "granted") {
-                alert("Sukses! Notifikasi diaktifkan.");
-                document.getElementById('btnNotif').innerText = "🔔 Notifikasi Aktif";
-                document.getElementById('btnNotif').style.background = "#4f545c";
-              }
-            });
-          }
-          else {
-            alert("Kamu sebelumnya memblokir notifikasi. Silahkan izinkan lewat pengaturan site browser.");
-          }
+          return outputArray;
         }
 
-        // Cek status awal tombol notif
-        window.addEventListener('DOMContentLoaded', () => {
-          if ("Notification" in window && Notification.permission === "granted") {
-            document.getElementById('btnNotif').innerText = "🔔 Notifikasi Aktif";
-            document.getElementById('btnNotif').style.background = "#4f545c";
+        async function requestNotifPermission() {
+          const nik = document.getElementById('nik').value.trim();
+          if (!nik) {
+            return alert("Silahkan ketik NIK kamu dulu di form atas lalu tekan 'Simpan Data Akun'!");
           }
-        });
 
-        function sendNotification(title, body) {
-          if ("Notification" in window && Notification.permission === "granted") {
-            new Notification(title, {
-              body: body,
-              icon: "https://cdn-icons-png.flaticon.com/512/2950/2950672.png" // Icon absen
+          if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            return alert("Browser kamu tidak mendukung Web Push Notification.");
+          }
+
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            return alert("Izin notifikasi ditolak oleh browser.");
+          }
+
+          try {
+            document.getElementById('btnNotif').innerText = "⏳ Sedang Menghubungkan ...";
+            const register = await navigator.serviceWorker.register('/sw.js');
+
+            const response = await fetch('/api/vapidPublicKey');
+            const vapidData = await response.json();
+
+            const subscription = await register.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlB64ToUint8Array(vapidData.publicKey)
             });
+
+            const subRes = await fetch('/api/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nik: nik, subscription: subscription })
+            });
+
+            const subData = await subRes.json();
+
+            if (subData.success) {
+              alert("Mantap! Web Push berhasil diaktifkan. Kamu sekarang bisa close tab ini dan notifikasi akan tetap masuk.");
+              document.getElementById('btnNotif').innerText = "🔔 Push Notif Aktif!";
+              document.getElementById('btnNotif').style.background = "#4f545c";
+            }
+            else {
+              alert("Error: " + subData.error);
+              document.getElementById('btnNotif').innerText = "🔔 Aktifkan Notifikasi";
+            }
+          }
+          catch (err) {
+            console.error(err);
+            alert("Gagal mengaktifkan notifikasi.");
           }
         }
 
@@ -554,52 +662,20 @@ server.get('/ui', (req, res) => {
           try {
             const res = await fetch('/api/logs');
             const logs = await res.json();
-
             const logBox = document.getElementById('logBox');
 
             if (logs.length === 0) {
               logBox.innerHTML = '<i>Belum ada aktivitas ...</i>';
-              lastLogCount = 0;
               return;
             }
 
-            const targetNik = document.getElementById('nik').value.trim();
-            let myHash = null;
-            if (targetNik) {
-              const hashRes = await fetch('/api/hash?nik=' + encodeURIComponent(targetNik));
-              const hashData = await hashRes.json();
-              myHash = hashData.hash;
-            }
-
-            if (lastLogCount > 0 && logs.length > lastLogCount) {
-              const newLogs = logs.slice(lastLogCount);
-
-              newLogs.forEach(l => {
-                let msgClean = l.message.replace(/<@[0-9]+>/g, '');
-
-                let isMyLog = true; 
-                if (targetNik) {
-                  if (l.ref !== myHash) {
-                    isMyLog = false; 
-                  }
-                }
-
-                if (isMyLog) {
-                  sendNotification("IRK Absen Update", msgClean);
-                }
-              });
-            }
-
-            lastLogCount = logs.length;
-
-            // Render HTML Log
             let htmlStr = '';
             logs.forEach(l => {
-                let msg = l.message.replace(/<@[0-9]+>/g, '[@DiscordUser]');
-                htmlStr += '<div style="margin-bottom: 8px;">' +
-                  '<span style="color: #5865F2;">[' + l.time + ']</span> ' +
-                  '<span style="color: #dcddde;">' + msg + '</span>' +
-                  '</div>';
+              let msg = l.message.replace(/<@[0-9]+>/g, '[@DiscordUser]');
+              htmlStr += '<div style="margin-bottom: 8px;">' +
+                '<span style="color: #5865F2;">[' + l.time + ']</span> ' +
+                '<span style="color: #dcddde;">' + msg + '</span>' +
+                '</div>';
             });
 
             const isScrolledToBottom = logBox.scrollHeight - logBox.clientHeight <= logBox.scrollTop + 10;

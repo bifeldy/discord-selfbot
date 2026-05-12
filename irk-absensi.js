@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const cron = require('node-cron');
 const fetch = require('node-fetch');
 const ntpClient = require('ntp-client');
+const webpush = require('web-push');
 
 const { Mutex } = require('async-mutex');
 
@@ -472,6 +473,25 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
       catch (e) {
         console.error('Gagal mengirim ke Discord:', e.message);
       }
+    }
+
+    try {
+      const currentConfig = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+      const accountData = currentConfig.irk.accounts.find(a => a.nik === userNik);
+
+      if (currentConfig.vapid && accountData && accountData.pushSubscription) {
+        webpush.setVapidDetails(`mailto:${currentConfig.botEmail}`, currentConfig.vapid.publicKey, currentConfig.vapid.privateKey);
+
+        let msgClean = msg.replace(/<@[0-9]+>/g, '[@DiscordUser]');
+
+        await webpush.sendNotification(
+          accountData.pushSubscription,
+          JSON.stringify({ title: 'IRK Absen', body: msgClean })
+        );
+      }
+    }
+    catch (e) {
+      console.log(`[Push Notification] Gagal mengirim ke ${maskedNik} (Token mungkin expired)`);
     }
   };
 
