@@ -599,7 +599,10 @@ server.get('/ui', (req, res) => {
             body: JSON.stringify(payload)
           });
           const result = await response.json();
-          alert(result.message);
+          const mauNotif = confirm("🔔 Mau aktifkan Notifikasi untuk NIK ini?\n\n" + result.message);
+          if (mauNotif) {
+            requestNotifPermission();
+          }
         });
 
         let lastLogCount = 0;
