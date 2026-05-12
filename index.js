@@ -623,29 +623,34 @@ server.get('/ui', (req, res) => {
           const registeredNik = localStorage.getItem('irk_registered_nik');
 
           if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            return;
+            return; // Browser gak support, biarkan saja
           }
 
           try {
-            const registration = await navigator.serviceWorker.ready;
-            const subscription = await registration.pushManager.getSubscription();
+            // Gunakan getRegistration() supaya tidak nge-hang kalau belum pernah install
+            const registration = await navigator.serviceWorker.getRegistration();
+
+            let subscription = null;
+            if (registration) {
+              subscription = await registration.pushManager.getSubscription();
+            }
 
             if (subscription) {
               if (inputNik === registeredNik) {
                 // Sesuai: Terdaftar untuk NIK ini
                 btn.innerText = "🔔 Push Notif Aktif!";
-                btn.style.background = "#4f545c"; // Abu-abu (Aktif)
+                btn.style.background = "#4f545c"; // Abu-abu
               }
               else {
-                // Tidak Sesuai: Terdaftar tapi untuk NIK lain
+                // Tidak Sesuai: Terdaftar tapi untuk NIK lain (atau kolom NIK kosong)
                 btn.innerText = "⚠️ Notif NIK Lain Aktif";
-                btn.style.background = "#faa61a"; // Oranye (Peringatan)
+                btn.style.background = "#faa61a"; // Oranye
               }
             }
             else {
               // Belum terdaftar push sama sekali
               btn.innerText = "🔔 Aktifkan Notifikasi";
-              btn.style.background = "#3ba55c"; // Hijau (Standar)
+              btn.style.background = "#3ba55c"; // Hijau
             }
           }
           catch (err) {
