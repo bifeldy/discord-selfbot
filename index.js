@@ -603,7 +603,7 @@ server.get('/ui', (req, res) => {
             body: JSON.stringify(payload)
           });
           const result = await response.json();
-          const mauNotif = confirm('🔔 Mau aktifkan Notifikasi untuk NIK ini?\n\n' + result.message);
+          const mauNotif = confirm('🔔 Mau aktifkan Notifikasi untuk NIK ini?\\n\\n' + result.message);
           if (mauNotif) {
             requestNotifPermission();
           }
