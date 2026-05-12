@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const readline = require('node:readline');
 
@@ -244,6 +245,16 @@ server.get('/api/logs', async (req, res) => {
   }
 });
 
+server.get('/api/hash', (req, res) => {
+  const nik = req.query.nik;
+  if (!nik) {
+    return res.code(200).send({ hash: null });
+  }
+
+  const hash = crypto.createHash('sha256').update(String(nik)).digest('hex');
+  res.code(200).send({ hash });
+});
+
 server.get('/ui', (req, res) => {
   const html = `
     <!DOCTYPE html>
@@ -350,6 +361,10 @@ server.get('/ui', (req, res) => {
 
         <div id="logBox" style="background: #18191c; padding: 15px; border-radius: 8px; height: 128px; overflow-y: auto; font-family: monospace; font-size: 13px; color: #a3a6aa; white-space: pre-wrap; border: 1px solid #202225;">
           Mohon menunggu ...
+        </div>
+
+        <div style="margin-top: 10px; text-align: right;">
+          <button type="button" id="btnNotif" onclick="requestNotifPermission()" style="width: auto; padding: 6px 12px; font-size: 12px; background: #3ba55c;">🔔 Aktifkan Notifikasi</button>
         </div>
 
         <h5 style="text-align: center; margin-top: 20px;">
@@ -466,10 +481,16 @@ server.get('/ui', (req, res) => {
 
         window.onload = function() {
           setLocation(currentLat, currentLon);
+
+          const savedNik = localStorage.getItem('irk_saved_nik');
+          if (savedNik) {
+            document.getElementById('nik').value = savedNik;
+          }
         };
 
         document.getElementById('irkForm').addEventListener('submit', async (e) => {
           e.preventDefault();
+          localStorage.setItem('irk_saved_nik', document.getElementById('nik').value);
           const payload = {
             nik: document.getElementById('nik').value,
             password: document.getElementById('password').value,
@@ -487,6 +508,48 @@ server.get('/ui', (req, res) => {
           alert(result.message);
         });
 
+        let lastLogCount = 0;
+
+        function requestNotifPermission() {
+          if (!("Notification" in window)) {
+            alert("Browser ini tidak mendukung notifikasi desktop.");
+            return;
+          }
+
+          if (Notification.permission === "granted") {
+            alert("Notifikasi sudah aktif!");
+          }
+            else if (Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+              if (permission === "granted") {
+                alert("Sukses! Notifikasi diaktifkan.");
+                document.getElementById('btnNotif').innerText = "🔔 Notifikasi Aktif";
+                document.getElementById('btnNotif').style.background = "#4f545c";
+              }
+            });
+          }
+          else {
+            alert("Kamu sebelumnya memblokir notifikasi. Silahkan izinkan lewat pengaturan site browser.");
+          }
+        }
+
+        // Cek status awal tombol notif
+        window.addEventListener('DOMContentLoaded', () => {
+          if ("Notification" in window && Notification.permission === "granted") {
+            document.getElementById('btnNotif').innerText = "🔔 Notifikasi Aktif";
+            document.getElementById('btnNotif').style.background = "#4f545c";
+          }
+        });
+
+        function sendNotification(title, body) {
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification(title, {
+              body: body,
+              icon: "https://cdn-icons-png.flaticon.com/512/2950/2950672.png" // Icon absen
+            });
+          }
+        }
+
         async function fetchLogs() {
           try {
             const res = await fetch('/api/logs');
@@ -496,9 +559,40 @@ server.get('/ui', (req, res) => {
 
             if (logs.length === 0) {
               logBox.innerHTML = '<i>Belum ada aktivitas ...</i>';
+              lastLogCount = 0;
               return;
             }
 
+            const targetNik = document.getElementById('nik').value.trim();
+            let myHash = null;
+            if (targetNik) {
+              const hashRes = await fetch('/api/hash?nik=' + encodeURIComponent(targetNik));
+              const hashData = await hashRes.json();
+              myHash = hashData.hash;
+            }
+
+            if (lastLogCount > 0 && logs.length > lastLogCount) {
+              const newLogs = logs.slice(lastLogCount);
+
+              newLogs.forEach(l => {
+                let msgClean = l.message.replace(/<@[0-9]+>/g, '');
+
+                let isMyLog = true; 
+                if (targetNik) {
+                  if (l.ref !== myHash) {
+                    isMyLog = false; 
+                  }
+                }
+
+                if (isMyLog) {
+                  sendNotification("IRK Absen Update", msgClean);
+                }
+              });
+            }
+
+            lastLogCount = logs.length;
+
+            // Render HTML Log
             let htmlStr = '';
             logs.forEach(l => {
                 let msg = l.message.replace(/<@[0-9]+>/g, '[@DiscordUser]');

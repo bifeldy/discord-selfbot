@@ -134,9 +134,8 @@ function getFormattedDate(date) {
 
 // --
 
-async function writeLogToFile(logMsg) {
+async function writeLogToFile(logMsg, userNik = null) {
   const release = await mtx.acquire();
-
   try {
     let logs = [];
     if (fs.existsSync(logFile)) {
@@ -147,8 +146,12 @@ async function writeLogToFile(logMsg) {
     const now = await getCurrentJakartaDate();
     const formattedTime = new Date(now).toLocaleString('id-ID');
 
-    logs.push({ time: formattedTime, message: logMsg });
+    let logHash = null;
+    if (userNik) {
+      logHash = crypto.createHash('sha256').update(String(userNik)).digest('hex');
+    }
 
+    logs.push({ time: formattedTime, message: logMsg, ref: logHash });
     fs.writeFileSync(logFile, JSON.stringify(logs, null, 2));
   }
   catch (err) {
@@ -458,7 +461,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
 
   const logger = async (msg) => {
     console.log(msg);
-    await writeLogToFile(msg);
+    await writeLogToFile(msg, userNik);
 
     if (discordClient) {
       try {
