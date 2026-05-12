@@ -277,7 +277,9 @@ server.post('/api/subscribe', async (req, res) => {
   const release = await mtx.acquire();
   try {
     const { nik, subscription } = req.body;
-    if (!nik || !subscription) return res.code(400).send({ error: 'Data tidak lengkap' });
+    if (!nik || !subscription) {
+      return res.code(400).send({ error: 'Data tidak lengkap' });
+    }
 
     let config = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
     const idx = config.irk.accounts.findIndex(a => a.nik === nik);
