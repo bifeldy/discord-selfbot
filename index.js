@@ -305,7 +305,12 @@ server.post('/api/subscribe', async (req, res) => {
 server.get('/sw.js', (req, res) => {
   const swCode = `
     self.addEventListener('push', function(event) {
-      let data = { title: 'IRK Absen Update', body: 'Ada aktivitas baru.' };
+      let data = {
+        title: 'IRK Absen Update',
+        body: 'Ada aktivitas baru.',
+        url: '/ui'
+      };
+
       if (event.data) {
         data = event.data.json();
       }
@@ -314,7 +319,10 @@ server.get('/sw.js', (req, res) => {
         body: data.body,
         icon: 'https://www.fansub.id/assets/img/favicon.png',
         badge: 'https://www.fansub.id/assets/img/favicon.png',
-        vibrate: [200, 100, 200]
+        vibrate: [200, 100, 200],
+        data: {
+          url: data.url || '/ui'
+        }
       };
 
       event.waitUntil(
@@ -324,12 +332,19 @@ server.get('/sw.js', (req, res) => {
 
     self.addEventListener('notificationclick', function(event) {
       event.notification.close();
-      event.waitUntil(clients.matchAll({ type: 'window' }).then(clientsArr => {
-        const hadWindowToFocus = clientsArr.some(windowClient => windowClient.url === '/' ? (windowClient.focus(), true) : false);
-        if (!hadWindowToFocus) {
-          clients.openWindow('/');
-        }
-      }));
+      const targetUrl = event.notification.data.url;
+
+      event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientsArr => {
+          for (const windowClient of clientsArr) {
+            if (windowClient.url.includes(targetUrl)) {
+              return windowClient.focus();
+            }
+          }
+
+          return clients.openWindow(targetUrl);
+        })
+      );
     });
   `;
 

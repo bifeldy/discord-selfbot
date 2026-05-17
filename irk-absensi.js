@@ -486,7 +486,11 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
 
         await webpush.sendNotification(
           accountData.pushSubscription,
-          JSON.stringify({ title: 'IRK Absen', body: msgClean })
+          JSON.stringify({
+            title: 'IRK Absen',
+            body: msgClean,
+            url: '/ui'
+          })
         );
       }
     }
@@ -502,9 +506,14 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     _tempResponseData = await loginResponse.json();
     if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'User Name / Password = Salah / Expired, Silahkan Set Ulang';
-      logger(`<@${discordId}> ${maskedNik} :: [LOGIN] ${errMsg}`);
-      jsonData.irk.accounts = jsonData.irk.accounts.filter(d => d.nik !== userNik);
-      fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
+      logger(`<@${discordId}> ${maskedNik} :: [LOGIN] ${errMsg} (Akun akan tidak akan presensi otomatis sampai diperbaiki manual)`);
+
+      const idx = jsonData.irk.accounts.findIndex(d => d.nik === userNik);
+      if (idx >= 0) {
+        jsonData.irk.accounts[idx].inactive = true;
+        fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
+      }
+
       return false;
     }
 
@@ -745,6 +754,7 @@ async function addEditIrk(discordId, msgData) {
       jsonData.irk.accounts[idx].targetSore = jamSore;
       jsonData.irk.accounts[idx].latitude = lat;
       jsonData.irk.accounts[idx].longitude = lon;
+      jsonData.irk.accounts[idx].inactive = false;
     }
     else {
       jsonData.irk.accounts.push({
@@ -754,7 +764,8 @@ async function addEditIrk(discordId, msgData) {
         targetPagi: jamPagi,
         targetSore: jamSore,
         latitude: lat,
-        longitude: lon
+        longitude: lon,
+        inactive: false
       });
     }
 
@@ -783,6 +794,10 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null) {
   const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
 
   for (const credential of jsonData.irk.accounts) {
+    if (credential.inactive) {
+      continue;
+    }
+
     let startMins = null;
     let endMins = null;
 
