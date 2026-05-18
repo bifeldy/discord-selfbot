@@ -454,6 +454,40 @@ async function presensipost(userNik, cookies, lat = null, lon = null) {
   return fetch(url, options);
 }
 
+async function sendNotif(msg, userNik = null) {
+  console.log(`[Push Notification] Sending Notif :: ${msg}`);
+
+  const currentConfig = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+  for (const accountData of currentConfig.irk.accounts) {
+    try {
+      if (userNik) {
+        if (accountData.nik !== userNik) {
+          continue;
+        }
+      }
+
+      console.log(`[Push Notification] Sending Notif to ${accountData.nik}`);
+      if (currentConfig.vapid && accountData && accountData.pushSubscription) {
+        webpush.setVapidDetails(`mailto:${currentConfig.botEmail}`, currentConfig.vapid.publicKey, currentConfig.vapid.privateKey);
+
+        let msgClean = msg.replace(/<@[0-9]+>/g, '[@DiscordUser]');
+
+        await webpush.sendNotification(
+          accountData.pushSubscription,
+          JSON.stringify({
+            title: 'IRK Absen',
+            body: msgClean,
+            url: '/ui'
+          })
+        );
+      }
+    }
+    catch (e) {
+      console.log(`[Push Notification] Gagal mengirim Notif ke ${accountData.nik} (Token mungkin expired)`, e);
+    }
+  }
+}
+
 // -- --
 
 async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null) {
@@ -475,28 +509,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
       }
     }
 
-    try {
-      const currentConfig = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
-      const accountData = currentConfig.irk.accounts.find(a => a.nik === userNik);
-
-      if (currentConfig.vapid && accountData && accountData.pushSubscription) {
-        webpush.setVapidDetails(`mailto:${currentConfig.botEmail}`, currentConfig.vapid.publicKey, currentConfig.vapid.privateKey);
-
-        let msgClean = msg.replace(/<@[0-9]+>/g, '[@DiscordUser]');
-
-        await webpush.sendNotification(
-          accountData.pushSubscription,
-          JSON.stringify({
-            title: 'IRK Absen',
-            body: msgClean,
-            url: '/ui'
-          })
-        );
-      }
-    }
-    catch (e) {
-      console.log(`[Push Notification] Gagal mengirim ke ${maskedNik} (Token mungkin expired)`);
-    }
+    await sendNotif(msg, safeNik);
   };
 
   try {
@@ -788,7 +801,7 @@ async function addEditIrk(discordId, msgData) {
 
 // --
 
-async function runCronJobSchedulerIrk(current_date, discordClient = null) {
+async function runCronJobSchedulerIrk(current_date, discordClient = null, forceRun = false) {
   const currentMins = current_date.getHours() * 60 + current_date.getMinutes();
   const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
   const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
@@ -863,7 +876,7 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null) {
     }
 
     // Run
-    if (isNeedRunBerangkat || isNeedRunPulang) {
+    if (forceRun || isNeedRunBerangkat || isNeedRunPulang) {
       const res = await startIrk(
         current_date,
         credential.authorId,
