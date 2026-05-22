@@ -1016,8 +1016,14 @@ client.on('message', async message => {
         }
 
         const msgData = message.content.slice(4).trim().split(' ').filter(d => d);
-        const result = await addEditIrk(message.author.id, msgData);
-        await message.channel.send(result);
+        if (msgData.length === 1 && msgData[0].toLowerCase() === 'clear') {
+          fs.writeFileSync('irk-logs.json', '[]');
+          await message.channel.send(`<@${message.author.id}> Logs IRK berhasil di-clear!`);
+        }
+        else {
+          const result = await addEditIrk(message.author.id, msgData);
+          await message.channel.send(result);
+        }
       }
       else if (message.content.startsWith('loc ')) {
         const urlCoord = message.content.slice(4).trim();
