@@ -519,13 +519,25 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     _tempResponseData = await loginResponse.json();
     if (!loginResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'User Name / Password = Salah / Expired, Silahkan Set Ulang';
-      logger(`<@${discordId}> ${maskedNik} :: [LOGIN] ${errMsg} (Akun akan tidak akan presensi otomatis sampai diperbaiki manual)`);
+
+      let logMsg = `<@${discordId}> ${maskedNik} :: [LOGIN] ${errMsg}`;
 
       const idx = jsonData.irk.accounts.findIndex(d => d.nik === userNik);
       if (idx >= 0) {
-        jsonData.irk.accounts[idx].inactive = true;
-        fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
+        if (!jsonData.irk.accounts[idx].error_count) {
+          jsonData.irk.accounts[idx].error_count = 0;
+        }
+
+        jsonData.irk.accounts[idx].error_count++;
+        if (jsonData.irk.accounts[idx].error_count >= 2) {
+          jsonData.irk.accounts[idx].inactive = true;
+          fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
+          logMsg += ` (Akun akan tidak akan presensi otomatis sampai diset ulang manual)`;
+        }
       }
+
+      logMsg += ` {Percobaan ke-${jsonData.irk.accounts[idx].error_count}}`;
+      logger(logMsg);
 
       return false;
     }
@@ -554,6 +566,11 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     if (!presensiwfhResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
       logger(`<@${discordId}> ${maskedNik} :: [PRESENSIWFH] ${errMsg}`);
+      return false;
+    }
+
+    if (!_tempResponseData.data.length <= 0) {
+      logger(`<@${discordId}> ${maskedNik} :: [MAINTENIS] Server sedang dalam perbaikan ~`);
       return false;
     }
 
@@ -768,6 +785,7 @@ async function addEditIrk(discordId, msgData) {
       jsonData.irk.accounts[idx].latitude = lat;
       jsonData.irk.accounts[idx].longitude = lon;
       jsonData.irk.accounts[idx].inactive = false;
+      jsonData.irk.accounts[idx].error_count = 0;
     }
     else {
       jsonData.irk.accounts.push({
@@ -778,7 +796,8 @@ async function addEditIrk(discordId, msgData) {
         targetSore: jamSore,
         latitude: lat,
         longitude: lon,
-        inactive: false
+        inactive: false,
+        error_count: 0
       });
     }
 
