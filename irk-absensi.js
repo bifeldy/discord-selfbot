@@ -569,7 +569,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
       return false;
     }
 
-    if (!_tempResponseData.data.length <= 0) {
+    if (_tempResponseData.data.length <= 0) {
       logger(`<@${discordId}> ${maskedNik} :: [MAINTENIS] Server sedang dalam perbaikan ~`);
       return false;
     }
