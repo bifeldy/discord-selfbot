@@ -896,15 +896,21 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null, forceR
 
     // Run
     if (forceRun || isNeedRunBerangkat || isNeedRunPulang) {
-      const res = await startIrk(
-        current_date,
-        credential.authorId,
-        credential.nik,
-        credential.password,
-        credential.latitude,
-        credential.longitude,
-        discordClient
-      );
+      let res = false;
+      if (dayName === 'Sabtu' || dayName === 'Sabtu') {
+        res = true;
+      }
+      else {
+        res = await startIrk(
+          current_date,
+          credential.authorId,
+          credential.nik,
+          credential.password,
+          credential.latitude,
+          credential.longitude,
+          discordClient
+        );
+      }
 
       if (res) {
         if (isNeedRunBerangkat) {
