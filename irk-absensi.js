@@ -897,7 +897,7 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null, forceR
     // Run
     if (forceRun || isNeedRunBerangkat || isNeedRunPulang) {
       let res = false;
-      if (dayName === 'Sabtu' || dayName === 'Sabtu') {
+      if (dayName === 'Sabtu' || dayName === 'Minggu') {
         res = true;
       }
       else {
