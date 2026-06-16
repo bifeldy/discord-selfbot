@@ -490,7 +490,9 @@ async function sendNotif(msg, userNik = null) {
 
 // -- --
 
-async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null) {
+async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null, checkOnly = false) {
+  const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
+
   const safeNik = String(userNik);
   const maskedNik = safeNik.length > 4 ? safeNik.substring(0, 2) + '*'.repeat(safeNik.length - 4) + safeNik.substring(safeNik.length - 2) : safeNik;
 
@@ -562,8 +564,13 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     const isTargetWfhToday = tanggal_wfh.includes(current_yyyyMMdd_dashHyphens);
 
     if (!isPresensiAvailable || !isTargetWfhToday) {
-      logger(`<@${discordId}> ${maskedNik} :: [JADWAL] Tidak Ada WFH, Mungkin Masuk Kantor / Libur Nasional ~`);
+      logger(`<@${discordId}> ${maskedNik} :: [JADWAL] ${dayName} :: Tidak Ada WFH, Mungkin Masuk Kantor / Libur Nasional ~`);
       return true;
+    }
+
+    if (checkOnly) {
+      logger(`<@${discordId}> ${maskedNik} :: [JADWAL] ${dayName} :: Hari Ini WFH ~`);
+      return false;
     }
 
     let presensigetResponse = await presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies);
@@ -577,7 +584,6 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     const jamAbsen = _tempResponseData.data[0];
     const jamMasuk = jamAbsen.machinein;
     let jamKeluar = null;
-    const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
     if (dayName === 'Jumat') {
       jamKeluar = jamAbsen.machineout_jumat;
     }
@@ -875,8 +881,13 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null, forceR
       }
     }
 
+    let checkOnly = false;
+    if (current_date.getHours() === 0 && current_date.getMinutes() === 0) {
+      checkOnly = true;
+    }
+
     // Run
-    if (forceRun || isNeedRunBerangkat || isNeedRunPulang) {
+    if (forceRun || isNeedRunBerangkat || isNeedRunPulang || checkOnly) {
       const res = await startIrk(
         current_date,
         credential.authorId,
@@ -884,7 +895,8 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null, forceR
         credential.password,
         credential.latitude,
         credential.longitude,
-        discordClient
+        discordClient,
+        checkOnly
       );
 
       if (res) {
