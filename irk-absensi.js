@@ -533,11 +533,11 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
         jsonData.irk.accounts[idx].error_count++;
         if (jsonData.irk.accounts[idx].error_count >= 2) {
           jsonData.irk.accounts[idx].inactive = true;
-          fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
           logMsg += ` (Akun akan tidak akan presensi otomatis sampai diset ulang manual)`;
         }
       }
 
+      fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
       logMsg += ` {Percobaan ke-${jsonData.irk.accounts[idx].error_count}}`;
       logger(logMsg);
 
