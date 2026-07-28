@@ -490,9 +490,9 @@ async function sendNotif(msg, userNik = null) {
   }
 }
 
-async function logNotify(msg, safeNik, discordClient = null) {
+async function logNotify(msg, userNik, discordClient = null) {
   console.log(msg);
-  await writeLogToFile(msg, safeNik);
+  await writeLogToFile(msg, userNik);
 
   if (discordClient) {
     try {
@@ -505,7 +505,7 @@ async function logNotify(msg, safeNik, discordClient = null) {
     }
   }
 
-  await sendNotif(msg, safeNik);
+  await sendNotif(msg, userNik);
 }
 
 // -- --
@@ -513,7 +513,7 @@ async function logNotify(msg, safeNik, discordClient = null) {
 async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null, checkOnly = false) {
   const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
 
-  const maskedNik = userNik.length > 4 ? userNik.substring(0, 2) + '*'.repeat(safeNik.length - 4) + safeNik.substring(safeNik.length - 2) : safeNik;
+  const maskedNik = userNik.length > 4 ? userNik.substring(0, 2) + '*'.repeat(userNik.length - 4) + userNik.substring(userNik.length - 2) : userNik;
 
   const logger = (msg) => logNotify(msg, userNik, discordClient);
 
@@ -829,7 +829,7 @@ async function addEditIrk(discordId, msgData) {
 
 async function refreshPassword(discordId, userNik, userPassword, discordClient = null) {
   try {
-    const maskedNik = userNik.length > 4 ? userNik.substring(0, 2) + '*'.repeat(safeNik.length - 4) + safeNik.substring(safeNik.length - 2) : safeNik;
+    const maskedNik = userNik.length > 4 ? userNik.substring(0, 2) + '*'.repeat(userNik.length - 4) + userNik.substring(userNik.length - 2) : userNik;
 
     const logger = (msg) => logNotify(msg, userNik, discordClient);
 
