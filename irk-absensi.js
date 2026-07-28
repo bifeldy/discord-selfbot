@@ -18,6 +18,8 @@ const { Mutex } = require('async-mutex');
  *
  */
 
+const REFRESH_PASSWORD = "123qweASD!@#";
+
 let isPresensiRunning = false;
 let isCleanupRunning = false;
 
@@ -488,31 +490,32 @@ async function sendNotif(msg, userNik = null) {
   }
 }
 
+async function logNotify(msg, safeNik, discordClient = null) {
+  console.log(msg);
+  await writeLogToFile(msg, safeNik);
+
+  if (discordClient) {
+    try {
+      const guild = discordClient.guilds.get(jsonData.irk.guildId);
+      const channel = guild.channels.get(jsonData.irk.channelId);
+      await channel.send(msg);
+    }
+    catch (e) {
+      console.error('Gagal mengirim ke Discord:', e.message);
+    }
+  }
+
+  await sendNotif(msg, safeNik);
+}
+
 // -- --
 
 async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null, checkOnly = false) {
   const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
 
-  const safeNik = String(userNik);
-  const maskedNik = safeNik.length > 4 ? safeNik.substring(0, 2) + '*'.repeat(safeNik.length - 4) + safeNik.substring(safeNik.length - 2) : safeNik;
+  const maskedNik = userNik.length > 4 ? userNik.substring(0, 2) + '*'.repeat(safeNik.length - 4) + safeNik.substring(safeNik.length - 2) : safeNik;
 
-  const logger = async (msg) => {
-    console.log(msg);
-    await writeLogToFile(msg, userNik);
-
-    if (discordClient) {
-      try {
-        const guild = discordClient.guilds.get(jsonData.irk.guildId);
-        const channel = guild.channels.get(jsonData.irk.channelId);
-        await channel.send(msg);
-      }
-      catch (e) {
-        console.error('Gagal mengirim ke Discord:', e.message);
-      }
-    }
-
-    await sendNotif(msg, safeNik);
-  };
+  const logger = (msg) => logNotify(msg, userNik, discordClient);
 
   try {
     let _tempResponseData = null;
@@ -824,6 +827,76 @@ async function addEditIrk(discordId, msgData) {
   }
 }
 
+async function refreshPassword(discordId, userNik, userPassword, discordClient = null) {
+  try {
+    const maskedNik = userNik.length > 4 ? userNik.substring(0, 2) + '*'.repeat(safeNik.length - 4) + safeNik.substring(safeNik.length - 2) : safeNik;
+
+    const logger = (msg) => logNotify(msg, userNik, discordClient);
+
+    const url = `${jsonData.irk.refreshPasswordUri}/PortalV2`;
+
+    const options = {
+      method: 'POST',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Origin': `${jsonData.irk.refreshPasswordOrigin}`,
+        'Referer': `${jsonData.irk.refreshPasswordOrigin}/`
+      }
+    };
+
+    options.body = JSON.stringify({
+      Data: {
+        code: "201",
+        parm: {
+          nik: userNik,
+          parmPass: {
+            oldPass: userPassword,
+            newPass: REFRESH_PASSWORD
+          }
+        }
+      }
+    });
+
+    const res1 = await fetch(url, options);
+    const data1 = await res1.json();
+
+    if (!res1.ok || data1.Code < 200 || data1.Code > 299) {
+      const errMsg = data1.Result?.result || data1.Message || 'Terjadi Kesalahan ~';
+      logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_TEMPORARY] ${errMsg}`);
+      return false;
+    }
+
+    options.body = JSON.stringify({
+      Data: {
+        code: "201",
+        parm: {
+          nik: userNik,
+          parmPass: {
+            oldPass: REFRESH_PASSWORD,
+            newPass: userPassword
+          }
+        }
+      }
+    });
+
+    const res2 = await fetch(url, options);
+    const data2 = await res2.json();
+    if (!res2.ok || data2.Code < 200 || data2.Code > 299) {
+      const errMsg = data2.Result?.result || data2.Message || 'Terjadi Kesalahan ~';
+      logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_ORIGINAL] ${errMsg}`);
+      return false;
+    }
+
+    return true;
+  }
+  catch (e) {
+    logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_REFRESH] ${e.message}`);
+    return false;
+  }
+}
+
 // --
 
 async function runCronJobSchedulerIrk(current_date, discordClient = null, forceRun = false) {
@@ -902,7 +975,16 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null, forceR
 
     let checkOnly = false;
     if (current_date.getHours() === 0 && current_date.getMinutes() === 0) {
-      checkOnly = true;
+      const res = await refreshPassword(
+        credential.authorId,
+        credential.nik,
+        credential.password,
+        discordClient
+      );
+
+      if (res) {
+        checkOnly = true;
+      }
     }
 
     // Run

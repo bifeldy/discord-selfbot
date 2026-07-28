@@ -414,25 +414,35 @@ server.get('/ui', (req, res) => {
           </div>
 
           <div class="form-row">
-            <div style="text-align: center;">
+            <small style="text-align: center;">
+              Password akan anti-expired,
+              diganti menjadi "123qweASD!@#" pada jam 00:00,
+              kemudian dikembalikan menjadi password asli anda.
+              <br /><br />
               Karena ini hanya untuk biar ga lupa presensi saja,
               sebagai alat bantu dan bukan yang utama,
               disarankan untuk mengatur jam berangkat sesiang mungkin,
               misalnya mepet dan mendekati waktu masuk,
               lalu untuk jam pulang juga semalam mungkin,
               sebagai contoh mendekati ganti hari
+              <br /><br />
+              Akan ada delay sehingga presensi waktunya selalu berbeda,
+              beberapa detik lewat dari jadwal yang ditentukan,
+              dan menggunakan lokasi perkiraan dari titik meleset,
+              sekitar 5 meter secara acak
+              <br /><br />
               ~ (｡&gt;&#xFE4F;&lt;｡) ~
-            </div>
+            </small>
           </div>
 
           <div class="form-row">
             <div class="form-group" style="margin-bottom: 0;">
               <label>Target Masuk (Pagi)</label>
-              <input type="time" id="targetPagi" value="07:59" required>
+              <input type="time" id="targetPagi" value="07:58" required>
             </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label>Target Pulang (Sore)</label>
-              <input type="time" id="targetSore" value="23:59" required>
+              <input type="time" id="targetSore" value="23:58" required>
             </div>
           </div>
 
