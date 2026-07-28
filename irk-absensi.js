@@ -828,24 +828,24 @@ async function addEditIrk(discordId, msgData) {
 }
 
 async function refreshPassword(discordId, userNik, userPassword, discordClient = null) {
+  const maskedNik = userNik.length > 4 ? userNik.substring(0, 2) + '*'.repeat(userNik.length - 4) + userNik.substring(userNik.length - 2) : userNik;
+
+  const logger = (msg) => logNotify(msg, userNik, discordClient);
+
+  const url = `${jsonData.irk.refreshPasswordUri}/PortalV2`;
+
+  const options = {
+    method: 'POST',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Origin': `${jsonData.irk.refreshPasswordOrigin}`,
+      'Referer': `${jsonData.irk.refreshPasswordOrigin}/`
+    }
+  };
+
   try {
-    const maskedNik = userNik.length > 4 ? userNik.substring(0, 2) + '*'.repeat(userNik.length - 4) + userNik.substring(userNik.length - 2) : userNik;
-
-    const logger = (msg) => logNotify(msg, userNik, discordClient);
-
-    const url = `${jsonData.irk.refreshPasswordUri}/PortalV2`;
-
-    const options = {
-      method: 'POST',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Origin': `${jsonData.irk.refreshPasswordOrigin}`,
-        'Referer': `${jsonData.irk.refreshPasswordOrigin}/`
-      }
-    };
-
     options.body = JSON.stringify({
       Data: {
         code: "201",
