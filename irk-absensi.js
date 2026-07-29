@@ -139,6 +139,7 @@ function getFormattedDate(date) {
 
 async function writeLogToFile(logMsg, userNik = null) {
   const release = await mtx.acquire();
+
   try {
     let logs = [];
     if (fs.existsSync(logFile)) {
@@ -542,7 +543,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
 
       fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
       logMsg += ` {Percobaan ke-${jsonData.irk.accounts[idx].error_count}}`;
-      logger(logMsg);
+      await logger(logMsg);
 
       return false;
     }
@@ -555,12 +556,12 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     _tempResponseData = await workerResponse.json();
     if (!workerResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
-      logger(`<@${discordId}> ${maskedNik} :: [WORKER] ${errMsg}`);
+      await logger(`<@${discordId}> ${maskedNik} :: [WORKER] ${errMsg}`);
       return false;
     }
 
     if (!_tempResponseData.data.user_irk) {
-      logger(`<@${discordId}> ${maskedNik} :: [AKUN] Bukan User Untuk Aplikasi IRK ~`);
+      await logger(`<@${discordId}> ${maskedNik} :: [AKUN] Bukan User Untuk Aplikasi IRK ~`);
       return true;
     }
 
@@ -570,12 +571,12 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     _tempResponseData = await presensiwfhResponse.json();
     if (!presensiwfhResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
-      logger(`<@${discordId}> ${maskedNik} :: [PRESENSIWFH] ${errMsg}`);
+      await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIWFH] ${errMsg}`);
       return false;
     }
 
     if (_tempResponseData.data.length <= 0) {
-      logger(`<@${discordId}> ${maskedNik} :: [MAINTENIS] Server sedang dalam perbaikan ~`);
+      await logger(`<@${discordId}> ${maskedNik} :: [MAINTENIS] Server sedang dalam perbaikan ~`);
       return false;
     }
 
@@ -584,12 +585,12 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     const isTargetWfhToday = tanggal_wfh.includes(current_yyyyMMdd_dashHyphens);
 
     if (!isPresensiAvailable || !isTargetWfhToday) {
-      logger(`<@${discordId}> ${maskedNik} :: [JADWAL] ${dayName} :: Tidak Ada WFH, Mungkin Masuk Kantor / Libur Nasional ~`);
+      await logger(`<@${discordId}> ${maskedNik} :: [JADWAL] ${dayName} :: Tidak Ada WFH, Mungkin Masuk Kantor / Libur Nasional ~`);
       return true;
     }
 
     if (checkOnly) {
-      logger(`<@${discordId}> ${maskedNik} :: [JADWAL] ${dayName} :: Hari Ini WFH ~`);
+      await logger(`<@${discordId}> ${maskedNik} :: [JADWAL] ${dayName} :: Hari Ini WFH ~`);
       return false;
     }
 
@@ -597,7 +598,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     _tempResponseData = await presensigetResponse.json();
     if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
-      logger(`<@${discordId}> ${maskedNik} :: [PRESENSIGET_TIME] ${errMsg}`);
+      await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIGET_TIME] ${errMsg}`);
       return false;
     }
 
@@ -615,14 +616,14 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     _tempResponseData = await presensigetResponse.json();
     if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
-      logger(`<@${discordId}> ${maskedNik} :: [PRESENSIGET_HISTORY] ${errMsg}`);
+      await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIGET_HISTORY] ${errMsg}`);
       return false;
     }
 
     if (_tempResponseData.data.length === 1) {
       const riwayatAbsenSore = _tempResponseData.data[0];
       if (riwayatAbsenSore.location_out?.length > 0) {
-        logger(`<@${discordId}> ${maskedNik} :: [PRESENSIGET_HISTORY] Sudah Ada Data Presensi Sore (Manual)`);
+        await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIGET_HISTORY] Sudah Ada Data Presensi Sore (Manual)`);
         return true;
       }
     }
@@ -633,7 +634,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
       const retVal = errMsg?.toUpperCase().trim() === 'SUDAH ADA DATA PRESENSI MASUK UNTUK HARI INI' ? true : false;
       const msgInfo = retVal ? 'Sudah Ada Data Presensi Pagi (Manual)' : errMsg;
-      logger(`<@${discordId}> ${maskedNik} :: [PRESENSIPOST] ${msgInfo}`);
+      await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIPOST] ${msgInfo}`);
       return retVal;
     }
 
@@ -641,12 +642,12 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     _tempResponseData = await presensigetResponse.json();
     if (!presensigetResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
-      logger(`<@${discordId}> ${maskedNik} :: [PRESENSIGET_HISTORY] ${errMsg}`);
+      await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIGET_HISTORY] ${errMsg}`);
       return false;
     }
 
     if (_tempResponseData.data.length !== 1) {
-      logger(`<@${discordId}> ${maskedNik} :: [JADWAL] Belum Ada Data WFH, Periksa Juga Tanggal Untuk Ikut Ke Asia/Jakarta ~`);
+      await logger(`<@${discordId}> ${maskedNik} :: [JADWAL] Belum Ada Data WFH, Periksa Juga Tanggal Untuk Ikut Ke Asia/Jakarta ~`);
       return true;
     }
 
@@ -655,7 +656,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     const absenKeluarJam = riwayatAbsen.machineout || '??';
     // const absenMasukLokasi = riwayatAbsen.location_in?.join(', ') || '??, ??';
     // const absenKeluarLokasi = riwayatAbsen.location_out?.join(', ') || '??, ??';
-    logger(`
+    await logger(`
       <@${discordId}> ${maskedNik} :: ${dayName}
       [BERANGKAT] ${jamMasuk} => ${absenMasukJam}
       [PULANG] ${jamKeluar} => ${absenKeluarJam}
@@ -664,7 +665,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     return true;
   }
   catch (e) {
-    logger(`<@${discordId}> ${maskedNik} :: [ERROR] ${e.message}`);
+    await logger(`<@${discordId}> ${maskedNik} :: [ERROR] ${e.message}`);
   }
 
   return false;
@@ -864,7 +865,7 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
 
     if (!res1.ok || data1.Code < 200 || data1.Code > 299) {
       const errMsg = data1.Result?.result || data1.Message || 'Terjadi Kesalahan ~';
-      logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_TEMPORARY] ${errMsg}`);
+      await logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_TEMPORARY] ${errMsg}`);
       return false;
     }
 
@@ -885,14 +886,14 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
     const data2 = await res2.json();
     if (!res2.ok || data2.Code < 200 || data2.Code > 299) {
       const errMsg = data2.Result?.result || data2.Message || 'Terjadi Kesalahan ~';
-      logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_ORIGINAL] ${errMsg}`);
+      await logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_ORIGINAL] ${errMsg}`);
       return false;
     }
 
     return true;
   }
   catch (e) {
-    logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_REFRESH] ${e.message}`);
+    await logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_REFRESH] ${e.message}`);
     return false;
   }
 }
