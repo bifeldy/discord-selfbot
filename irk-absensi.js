@@ -75,6 +75,25 @@ const toMinutes = (timeStr) => {
 
 // -- --
 
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    return response;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`Request Timeout setelah ${timeoutMs}ms: ${url}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+// -- --
+
 const ntpServers = [
   'time.bmkg.go.id',
   'time.cloudflare.com',
@@ -224,8 +243,8 @@ async function cekAlamatReal(lat, lon) {
     };
 
     const [osmResponse, gMapResponse] = await Promise.all([
-      fetch(osmUrl, options),
-      fetch(gMapUrl, options)
+      fetchWithTimeout(osmUrl, options),
+      fetchWithTimeout(gMapUrl, options)
     ]);
 
     if (!osmResponse.ok) {
@@ -353,7 +372,7 @@ async function login(userNik, userPassword) {
     })
   };
 
-  return fetch(url, options);
+  return fetchWithTimeout(url, options);
 }
 
 async function worker(userNik, cookies) {
@@ -375,7 +394,7 @@ async function worker(userNik, cookies) {
     })
   };
 
-  return fetch(url, options);
+  return fetchWithTimeout(url, options);
 }
 
 async function presensiwfh(current_date, userNik, cookies, bulan = null, tahun = null) {
@@ -399,7 +418,7 @@ async function presensiwfh(current_date, userNik, cookies, bulan = null, tahun =
     })
   };
 
-  return fetch(url, options);
+  return fetchWithTimeout(url, options);
 }
 
 async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTimeOnly = true) {
@@ -428,7 +447,7 @@ async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTi
     });
   }
 
-  return fetch(url, options);
+  return fetchWithTimeout(url, options);
 }
 
 async function presensipost(userNik, cookies, lat = null, lon = null) {
@@ -454,14 +473,13 @@ async function presensipost(userNik, cookies, lat = null, lon = null) {
     })
   };
 
-  return fetch(url, options);
+  return fetchWithTimeout(url, options);
 }
 
 async function sendNotif(msg, userNik = null) {
   console.log(`[Push Notification] Sending Notif :: ${msg}`);
 
-  const currentConfig = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
-  for (const accountData of currentConfig.irk.accounts) {
+  for (const accountData of jsonData.irk.accounts) {
     try {
       if (userNik) {
         if (accountData.nik !== userNik) {
@@ -470,8 +488,8 @@ async function sendNotif(msg, userNik = null) {
       }
 
       console.log(`[Push Notification] Sending Notif to ${accountData.nik}`);
-      if (currentConfig.vapid && accountData && accountData.pushSubscription) {
-        webpush.setVapidDetails(`mailto:${currentConfig.botEmail}`, currentConfig.vapid.publicKey, currentConfig.vapid.privateKey);
+      if (jsonData.irk.vapid && accountData && accountData.pushSubscription) {
+        webpush.setVapidDetails(`mailto:${jsonData.irk.botEmail}`, jsonData.irk.vapid.publicKey, jsonData.irk.vapid.privateKey);
 
         let msgClean = msg.replace(/<@[0-9]+>/g, '[@DiscordUser]');
 
@@ -860,7 +878,7 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
       }
     });
 
-    const res1 = await fetch(url, options);
+    const res1 = await fetchWithTimeout(url, options);
     const data1 = await res1.json();
 
     if (!res1.ok || data1.Code < 200 || data1.Code > 299) {
@@ -882,7 +900,7 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
       }
     });
 
-    const res2 = await fetch(url, options);
+    const res2 = await fetchWithTimeout(url, options);
     const data2 = await res2.json();
     if (!res2.ok || data2.Code < 200 || data2.Code > 299) {
       const errMsg = data2.Result?.result || data2.Message || 'Terjadi Kesalahan ~';

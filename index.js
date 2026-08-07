@@ -879,7 +879,7 @@ client.on('message', async message => {
 
       // Add Emoji List For Ping
       else if (message.content.startsWith('ping ')) {
-        const release = await mutex.acquire();
+        const release = await mtx.acquire();
 
         try {
           jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
