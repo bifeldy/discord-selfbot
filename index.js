@@ -165,8 +165,6 @@ server.get('/', (req, res) => {
 
 // Endpoint untuk menyimpan/mengupdate akun
 server.post('/api/account', async (req, res) => {
-  const release = await mtx.acquire();
-
   try {
     const payload = req.body;
     const msgData = [
@@ -184,8 +182,8 @@ server.post('/api/account', async (req, res) => {
 
     res.code(200).send({ success: true, message: result });
   }
-  finally {
-    release();
+  catch (err) {
+    res.code(500).send({ success: false, error: err.message });
   }
 });
 

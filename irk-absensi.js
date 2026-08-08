@@ -47,12 +47,7 @@ const defaultHeader = {
 
 // -- --
 
-const delay = (ms) => new Promise(resolve => {
-  const timer = setInterval(() => {
-    clearInterval(timer);
-    resolve();
-  }, ms);
-});
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const isValidTime = (val) => {
   if (!val.includes(':')) {
@@ -78,7 +73,7 @@ const toMinutes = (timeStr) => {
 const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
     return response;
@@ -94,14 +89,20 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
 
 // -- --
 
+let ntpOffsetMs = 0;
+
 const ntpServers = [
-  'time.bmkg.go.id',
+  'time.google.com',
   'time.cloudflare.com',
-  'time.google.com'
+  'jp.pool.ntp.org',
+  'ntp.nict.jp',
+  'id.pool.ntp.org',
+  'time.bmkg.go.id'
 ];
 
-async function getNtpDate() {
-  for (const server of ntpServers) {
+async function syncNtpOffset() {
+  for (let i = 0; i < ntpServers.length; i++) {
+    const server = ntpServers[i];
     try {
       const date = await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -113,31 +114,33 @@ async function getNtpDate() {
 
         ntpClient.getNetworkTime(ipHost, port, (err, date) => {
           clearTimeout(timeout);
-
-          if (err) {
-            return reject(err);
-          }
-
+          if (err) return reject(err);
           resolve(date);
         });
       });
 
-      return date;
+      ntpOffsetMs = date.getTime() - Date.now();
+      console.log(`[⏱️ NTP Sync] Offset NTP berhasil diperbarui: ${ntpOffsetMs}ms (Server: ${server})`);
+
+      // Promosikan server yang berhasil merespons ini ke urutan paling depan untuk sync berikutnya!
+      if (i > 0) {
+        ntpServers.splice(i, 1);
+        ntpServers.unshift(server);
+      }
+      return;
     }
     catch (e) {
-      // Check Next ~
+      // Coba server berikutnya ~
     }
   }
 
-  throw new Error('Semua server NTP gagal dijangkau.');
+  console.warn('[⚠️ NTP Sync] Gagal menyinkronkan NTP, menggunakan offset sebelumnya:', ntpOffsetMs);
 }
 
-async function getCurrentJakartaDate(ntpDate = null) {
-  if (!ntpDate) {
-    ntpDate = await getNtpDate();
-  }
-
-  const jakartaString = ntpDate.toLocaleString('en-US', {
+function getCurrentJakartaDate(ntpDate = null) {
+  const currentMs = ntpDate ? new Date(ntpDate).getTime() : (Date.now() + ntpOffsetMs);
+  const dateObj = new Date(currentMs);
+  const jakartaString = dateObj.toLocaleString('en-US', {
     timeZone: 'Asia/Jakarta'
   });
 
@@ -157,6 +160,7 @@ function getFormattedDate(date) {
 // --
 
 async function writeLogToFile(logMsg, userNik = null) {
+
   const release = await mtx.acquire();
 
   try {
@@ -166,7 +170,7 @@ async function writeLogToFile(logMsg, userNik = null) {
       logs = fileData.trim() ? JSON.parse(fileData) : [];
     }
 
-    const now = await getCurrentJakartaDate();
+    const now = getCurrentJakartaDate();
     const formattedTime = new Date(now).toLocaleString('id-ID');
 
     let logHash = null;
@@ -479,6 +483,8 @@ async function presensipost(userNik, cookies, lat = null, lon = null) {
 async function sendNotif(msg, userNik = null) {
   console.log(`[Push Notification] Sending Notif :: ${msg}`);
 
+  let isConfigChanged = false;
+
   for (const accountData of jsonData.irk.accounts) {
     try {
       if (userNik) {
@@ -487,8 +493,8 @@ async function sendNotif(msg, userNik = null) {
         }
       }
 
-      console.log(`[Push Notification] Sending Notif to ${accountData.nik}`);
       if (jsonData.irk.vapid && accountData && accountData.pushSubscription) {
+        console.log(`[Push Notification] Sending Notif to ${accountData.nik}`);
         webpush.setVapidDetails(`mailto:${jsonData.irk.botEmail}`, jsonData.irk.vapid.publicKey, jsonData.irk.vapid.privateKey);
 
         let msgClean = msg.replace(/<@[0-9]+>/g, '[@DiscordUser]');
@@ -504,7 +510,42 @@ async function sendNotif(msg, userNik = null) {
       }
     }
     catch (e) {
-      console.log(`[Push Notification] Gagal mengirim Notif ke ${accountData.nik} (Token mungkin expired)`, e);
+      const statusCode = e.statusCode || e.status;
+      const isExpiredOrInvalid = statusCode === 404 || statusCode === 410 || statusCode === 400 ||
+        (e.message && (e.message.includes('410') || e.message.includes('404') || e.message.includes('expired') || e.message.includes('unsubscribed')));
+
+      if (isExpiredOrInvalid) {
+        console.log(`[Push Notification] Subscription untuk NIK ${accountData.nik} sudah expired/unsubscribed (${statusCode || e.message}). Menghapus token notification...`);
+        delete accountData.pushSubscription;
+        isConfigChanged = true;
+      }
+      else {
+        console.log(`[Push Notification] Gagal mengirim Notif ke ${accountData.nik}:`, e.message);
+      }
+    }
+  }
+
+  if (isConfigChanged) {
+    const release = await mtx.acquire();
+    try {
+      let config = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+      for (const acc of jsonData.irk.accounts) {
+        if (!acc.pushSubscription) {
+          const idx = config.irk.accounts.findIndex(a => a.nik === acc.nik);
+          if (idx !== -1) {
+            delete config.irk.accounts[idx].pushSubscription;
+          }
+        }
+      }
+      fs.writeFileSync(jsonConfig, JSON.stringify(config, null, 2));
+      jsonData = config;
+      console.log('[🧹 Push Notification] Token push subscription yang expired berhasil dibersihkan dari config.json!');
+    }
+    catch (err) {
+      console.error('Gagal meng-update config.json setelah menghapus pushSubscription expired:', err);
+    }
+    finally {
+      release();
     }
   }
 }
@@ -517,14 +558,14 @@ async function logNotify(msg, userNik, discordClient = null) {
     try {
       const guild = discordClient.guilds.get(jsonData.irk.guildId);
       const channel = guild.channels.get(jsonData.irk.channelId);
-      await channel.send(msg);
+      channel.send(msg).catch(e => console.error('Gagal mengirim ke Discord:', e.message));
     }
     catch (e) {
       console.error('Gagal mengirim ke Discord:', e.message);
     }
   }
 
-  await sendNotif(msg, userNik);
+  sendNotif(msg, userNik).catch(e => console.error('Gagal mengirim Push Notif:', e.message));
 }
 
 // -- --
@@ -1080,7 +1121,7 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
     const toDelete = [];
     for (const msg of messages.values()) {
       const msgCreatedDate = new Date(msg.createdTimestamp);
-      const msgCreatedDateJakarta = await getCurrentJakartaDate(msgCreatedDate);
+      const msgCreatedDateJakarta = getCurrentJakartaDate(msgCreatedDate);
       const tsJakarta = msgCreatedDateJakarta.getTime();
 
       const candidate = tsJakarta >= startTs && // After or at 00:00 yesterday
@@ -1120,7 +1161,12 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
 // --
 
 function startCron(discordClient = null) {
-  // Server Restart 6 Jam Sekali (Waktu JST) :: Hindari detik / menit ke-0
+  // Sync NTP Offset saat startup dan setiap 30 menit di background
+  syncNtpOffset();
+
+  cron.schedule('*/30 * * * *', () => {
+    syncNtpOffset();
+  });
 
   // Setiap Menit Ke-0
   cron.schedule('* * * * *', async () => {
@@ -1133,7 +1179,7 @@ function startCron(discordClient = null) {
       isPresensiRunning = true;
       jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
       await delay(15 * 1000);
-      const current_date = await getCurrentJakartaDate();
+      const current_date = getCurrentJakartaDate();
       await runCronJobSchedulerIrk(current_date, discordClient);
     }
     catch (err) {
@@ -1144,8 +1190,8 @@ function startCron(discordClient = null) {
     }
   });
 
-  // Setiap Menit Ke-0
-  cron.schedule('* * * * *', async () => {
+  // Run Cleanup Cron sekali sehari pada pukul 00:00 WIB
+  cron.schedule('0 0 * * *', async () => {
     if (isCleanupRunning) {
       console.log('Cleanup Masih Berjalan ...');
       return;
@@ -1154,7 +1200,7 @@ function startCron(discordClient = null) {
     try {
       isCleanupRunning = true;
       await delay(15 * 1000);
-      const nowJakarta = await getCurrentJakartaDate();
+      const nowJakarta = getCurrentJakartaDate();
       await runCronJobSchedulerCleanUp(nowJakarta, discordClient);
     }
     catch (e) {
@@ -1163,6 +1209,8 @@ function startCron(discordClient = null) {
     finally {
       isCleanupRunning = false;
     }
+  }, {
+    timezone: 'Asia/Jakarta'
   });
 
   cron.schedule('0 0 * * *', async () => {
