@@ -1161,10 +1161,10 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
 // --
 
 function startCron(discordClient = null) {
-  // Sync NTP Offset saat startup dan setiap 30 menit di background
+  // Sync NTP Offset saat startup dan setiap 15 menit di background
   syncNtpOffset();
 
-  cron.schedule('*/30 * * * *', () => {
+  cron.schedule('*/15 * * * *', () => {
     syncNtpOffset();
   });
 
