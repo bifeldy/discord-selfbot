@@ -484,6 +484,26 @@ async function sendNotif(msg, userNik = null) {
   console.log(`[Push Notification] Sending Notif :: ${msg}`);
 
   let isConfigChanged = false;
+  let vapid = jsonData.vapid || jsonData.irk?.vapid;
+  const botEmail = jsonData.botEmail || jsonData.irk?.botEmail || 'noreply@fansub.id';
+
+  if (!vapid) {
+    vapid = webpush.generateVAPIDKeys();
+    jsonData.vapid = vapid;
+    const release = await mtx.acquire();
+    try {
+      let config = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+      config.vapid = vapid;
+      fs.writeFileSync(jsonConfig, JSON.stringify(config, null, 2));
+      console.log('[🔑 VAPID Keys] Kunci VAPID baru berhasil di-generate dan disimpan ke config.json!');
+    }
+    catch (e) {
+      console.error('Gagal simpan VAPID keys:', e.message);
+    }
+    finally {
+      release();
+    }
+  }
 
   for (const accountData of jsonData.irk.accounts) {
     try {
@@ -493,21 +513,24 @@ async function sendNotif(msg, userNik = null) {
         }
       }
 
-      if (jsonData.irk.vapid && accountData && accountData.pushSubscription) {
-        console.log(`[Push Notification] Sending Notif to ${accountData.nik}`);
-        webpush.setVapidDetails(`mailto:${jsonData.irk.botEmail}`, jsonData.irk.vapid.publicKey, jsonData.irk.vapid.privateKey);
-
-        let msgClean = msg.replace(/<@[0-9]+>/g, '[@DiscordUser]');
-
-        await webpush.sendNotification(
-          accountData.pushSubscription,
-          JSON.stringify({
-            title: 'IRK Absen',
-            body: msgClean,
-            url: '/ui'
-          })
-        );
+      if (!accountData.pushSubscription) {
+        console.log(`[Push Notification] ℹ️ Akun NIK ${accountData.nik} belum mengaktifkan notifikasi browser UI (/ui). Notif di-skip.`);
+        continue;
       }
+
+      console.log(`[Push Notification] Sending Notif to ${accountData.nik}`);
+      webpush.setVapidDetails(`mailto:${botEmail}`, vapid.publicKey, vapid.privateKey);
+
+      let msgClean = msg.replace(/<@[0-9]+>/g, '[@DiscordUser]');
+
+      await webpush.sendNotification(
+        accountData.pushSubscription,
+        JSON.stringify({
+          title: 'IRK Absen',
+          body: msgClean,
+          url: '/ui'
+        })
+      );
     }
     catch (e) {
       const statusCode = e.statusCode || e.status;
