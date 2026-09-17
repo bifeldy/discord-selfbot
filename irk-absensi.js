@@ -730,7 +730,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
 
     if (_tempResponseData.data.length !== 1) {
       await logger(`<@${discordId}> ${maskedNik} :: [JADWAL] Belum Ada Data WFH, Periksa Juga Tanggal Untuk Ikut Ke Asia/Jakarta ~`);
-      return true;
+      return false;
     }
 
     const riwayatAbsen = _tempResponseData.data[0];
