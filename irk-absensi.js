@@ -951,6 +951,9 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
       return false;
     }
 
+    const randomDelay = (Math.floor(Math.random() * (45 - 15 + 1)) + 15) * 1000;
+    await delay(randomDelay);
+
     options.body = JSON.stringify({
       Data: {
         code: "201",
@@ -982,126 +985,152 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
 
 // --
 
+async function processAccount(credential, current_date, discordClient, forceRun, current_yyyyMMdd_dashHyphens, dayName, currentMins) {
+  if (credential.inactive) {
+    return;
+  }
+
+  const randomDelay = (Math.floor(Math.random() * (45 - 15 + 1)) + 15) * 1000;
+  await delay(randomDelay);
+
+  let startMins = null;
+  let endMins = null;
+
+  let isNeedRunBerangkat = false;
+  let isNeedRunPulang = false;
+
+  // Berangkat
+  startMins = toMinutes('00:00');
+  endMins = toMinutes('07:59');
+
+  if (credential.targetPagi) {
+    startMins = toMinutes(credential.targetPagi);
+    if (startMins >= toMinutes('08:00')) {
+      endMins = toMinutes('08:59');
+    }
+  }
+
+  const targetBerangkat = currentMins >= startMins && currentMins <= endMins;
+  if (!credential.berangkat && targetBerangkat) {
+    isNeedRunBerangkat = true;
+  }
+  else if (credential.berangkat) {
+    const lastRunString = new Date(credential.berangkat).toLocaleString('en-US', {
+      timeZone: 'Asia/Jakarta'
+    });
+    const lastRunDate = new Date(lastRunString);
+    const lastRunFormatted = getFormattedDate(lastRunDate);
+
+    if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && targetBerangkat) {
+      isNeedRunBerangkat = true;
+    }
+  }
+
+  // Pulang
+  startMins = toMinutes('18:00');
+  endMins = toMinutes('23:59');
+
+  if (credential.targetSore) {
+    startMins = toMinutes(credential.targetSore);
+  }
+
+  if (dayName === 'Jumat') {
+    startMins += 30;
+    if (startMins > endMins) {
+      startMins = endMins;
+    }
+  }
+
+  const targetPulang = currentMins >= startMins && currentMins <= endMins;
+  if (!credential.pulang && targetPulang) {
+    isNeedRunPulang = true;
+  }
+  else if (credential.pulang) {
+    const lastRunString = new Date(credential.pulang).toLocaleString('en-US', {
+      timeZone: 'Asia/Jakarta'
+    });
+    const lastRunDate = new Date(lastRunString);
+    const lastRunFormatted = getFormattedDate(lastRunDate);
+
+    if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && targetPulang) {
+      isNeedRunPulang = true;
+    }
+  }
+
+  let checkOnly = false;
+  if (current_date.getHours() === 0 && current_date.getMinutes() === 0) {
+    const res = await refreshPassword(
+      credential.authorId,
+      credential.nik,
+      credential.password,
+      discordClient
+    );
+
+    if (res) {
+      checkOnly = true;
+    }
+  }
+
+  // Run
+  if (forceRun || isNeedRunBerangkat || isNeedRunPulang || checkOnly) {
+    let res = false;
+    if (dayName === 'Sabtu' || dayName === 'Minggu') {
+      res = true;
+    }
+    else {
+      res = await startIrk(
+        current_date,
+        credential.authorId,
+        credential.nik,
+        credential.password,
+        credential.latitude,
+        credential.longitude,
+        discordClient,
+        checkOnly
+      );
+    }
+
+    if (res) {
+      if (isNeedRunBerangkat) {
+        credential.berangkat = new Date().toISOString();
+      }
+      else if (isNeedRunPulang) {
+        credential.pulang = new Date().toISOString();
+      }
+
+      // --- PERUBAHAN PENTING: Gunakan Mutex Saat Save Config ---
+      const release = await mtx.acquire();
+      try {
+        fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
+      } catch (err) {
+        console.error(`Gagal save config untuk NIK ${credential.nik}:`, err);
+      } finally {
+        release();
+      }
+    }
+  }
+}
+
 async function runCronJobSchedulerIrk(current_date, discordClient = null, forceRun = false) {
   const currentMins = current_date.getHours() * 60 + current_date.getMinutes();
   const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
   const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
 
-  for (const credential of jsonData.irk.accounts) {
-    if (credential.inactive) {
-      continue;
-    }
+  // Map setiap akun menjadi sebuah Promise
+  const promises = jsonData.irk.accounts.map(credential => {
+    return processAccount(
+      credential,
+      current_date,
+      discordClient,
+      forceRun,
+      current_yyyyMMdd_dashHyphens,
+      dayName,
+      currentMins
+    );
+  });
 
-    let startMins = null;
-    let endMins = null;
-
-    let isNeedRunBerangkat = false;
-    let isNeedRunPulang = false;
-
-    // Berangkat
-    startMins = toMinutes('00:00');
-    endMins = toMinutes('07:59');
-
-    if (credential.targetPagi) {
-      startMins = toMinutes(credential.targetPagi);
-      if (startMins >= toMinutes('08:00')) {
-        endMins = toMinutes('08:59');
-      }
-    }
-
-    const targetBerangkat = currentMins >= startMins && currentMins <= endMins;
-    if (!credential.berangkat && targetBerangkat) {
-      isNeedRunBerangkat = true;
-    }
-    else if (credential.berangkat) {
-      const lastRunString = new Date(credential.berangkat).toLocaleString('en-US', {
-        timeZone: 'Asia/Jakarta'
-      });
-      const lastRunDate = new Date(lastRunString);
-      const lastRunFormatted = getFormattedDate(lastRunDate);
-
-      if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && targetBerangkat) {
-        isNeedRunBerangkat = true;
-      }
-    }
-
-    // Pulang
-    startMins = toMinutes('18:00');
-    endMins = toMinutes('23:59');
-
-    if (credential.targetSore) {
-      startMins = toMinutes(credential.targetSore);
-    }
-
-    if (dayName === 'Jumat') {
-      startMins += 30;
-      if (startMins > endMins) {
-        startMins = endMins;
-      }
-    }
-
-    const targetPulang = currentMins >= startMins && currentMins <= endMins;
-    if (!credential.pulang && targetPulang) {
-      isNeedRunPulang = true;
-    }
-    else if (credential.pulang) {
-      const lastRunString = new Date(credential.pulang).toLocaleString('en-US', {
-        timeZone: 'Asia/Jakarta'
-      });
-      const lastRunDate = new Date(lastRunString);
-      const lastRunFormatted = getFormattedDate(lastRunDate);
-
-      if (current_yyyyMMdd_dashHyphens !== lastRunFormatted && targetPulang) {
-        isNeedRunPulang = true;
-      }
-    }
-
-    let checkOnly = false;
-    if (current_date.getHours() === 0 && current_date.getMinutes() === 0) {
-      const res = await refreshPassword(
-        credential.authorId,
-        credential.nik,
-        credential.password,
-        discordClient
-      );
-
-      if (res) {
-        checkOnly = true;
-      }
-    }
-
-    // Run
-    if (forceRun || isNeedRunBerangkat || isNeedRunPulang || checkOnly) {
-      let res = false;
-      if (dayName === 'Sabtu' || dayName === 'Minggu') {
-        res = true;
-      }
-      else {
-        res = await startIrk(
-          current_date,
-          credential.authorId,
-          credential.nik,
-          credential.password,
-          credential.latitude,
-          credential.longitude,
-          discordClient,
-          checkOnly
-        );
-      }
-
-      if (res) {
-        if (isNeedRunBerangkat) {
-          credential.berangkat = new Date().toISOString();
-        }
-        else if (isNeedRunPulang) {
-          credential.pulang = new Date().toISOString();
-        }
-
-        fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
-      }
-    }
-
-  }
+  // Eksekusi semua secara paralel
+  await Promise.all(promises);
 }
 
 async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
@@ -1201,7 +1230,10 @@ function startCron(discordClient = null) {
     try {
       isPresensiRunning = true;
       jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
-      await delay(15 * 1000);
+
+      const randomDelay = (Math.floor(Math.random() * (45 - 15 + 1)) + 15) * 1000;
+      await delay(randomDelay);
+
       const current_date = getCurrentJakartaDate();
       await runCronJobSchedulerIrk(current_date, discordClient);
     }
@@ -1222,7 +1254,10 @@ function startCron(discordClient = null) {
 
     try {
       isCleanupRunning = true;
-      await delay(15 * 1000);
+
+      const randomDelay = (Math.floor(Math.random() * (45 - 15 + 1)) + 15) * 1000;
+      await delay(randomDelay);
+
       const nowJakarta = getCurrentJakartaDate();
       await runCronJobSchedulerCleanUp(nowJakarta, discordClient);
     }
