@@ -945,7 +945,8 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
       'Accept': 'application/json, text/plain, */*',
       'Accept-Language': 'en-US,en;q=0.9',
       'Origin': `${jsonData.irk.refreshPasswordOrigin}`,
-      'Referer': `${jsonData.irk.refreshPasswordOrigin}/`
+      'Referer': `${jsonData.irk.refreshPasswordOrigin}/`,
+      'Content-Type': 'application/json'
     }
   };
 
@@ -1079,7 +1080,7 @@ async function processAccount(credential, current_date, discordClient, forceRun,
   }
 
   let checkOnly = false;
-  if (current_date.getHours() === 0 && current_date.getMinutes() === 0) {
+  if (current_date.getHours() === 3 && current_date.getMinutes() === 0) {
     const res = await refreshPassword(
       credential.authorId,
       credential.nik,
