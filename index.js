@@ -601,19 +601,29 @@ server.get('/ui', (req, res) => {
             setLocation(e.latlng.lat, e.latlng.lng);
         });
 
+        let typeTimeout;
+
         document.getElementById('latitude').addEventListener('input', function(e) {
           const lat = parseFloat(e.target.value);
           const lon = parseFloat(document.getElementById('longitude').value);
-          if(!isNaN(lat) && !isNaN(lon)){
+          if(!isNaN(lat) && !isNaN(lon)) {
             setLocation(lat, lon, false, false);
+            clearTimeout(typeTimeout);
+            typeTimeout = setTimeout(() => {
+              setLocation(lat, lon, true, false);
+            }, 800);
           }
         });
 
         document.getElementById('longitude').addEventListener('input', function(e) {
           const lat = parseFloat(document.getElementById('latitude').value);
           const lon = parseFloat(e.target.value);
-          if(!isNaN(lat) && !isNaN(lon)){
+          if(!isNaN(lat) && !isNaN(lon)) {
             setLocation(lat, lon, false, false);
+            clearTimeout(typeTimeout);
+            typeTimeout = setTimeout(() => {
+              setLocation(lat, lon, true, false);
+            }, 800);
           }
         });
 
