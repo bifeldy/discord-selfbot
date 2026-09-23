@@ -229,7 +229,7 @@ function laraDecrypt(base64Payload) {
 async function cekAlamatReal(lat, lon) {
   try {
     const osmUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
-    const awsUrl = `https://places.${jsonData.awsRegion}.amazonaws.com/places/v0/indexes/${jsonData.awsPlaceName}/search/position?key=${jsonData.awsApiKey}`;
+    const awsUrl = `https://places.geo.${jsonData.awsRegion}.amazonaws.com/places/v0/indexes/${jsonData.awsPlaceName}/search/position?key=${jsonData.awsApiKey}`;
 
     const optionsOsm = {
       method: 'GET',
@@ -239,13 +239,12 @@ async function cekAlamatReal(lat, lon) {
     const optionsAws = {
       method: 'POST',
       headers: {
-        ...defaultHeader,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        // Wajib: Format array AWS adalah [Longitude, Latitude]
-        Position: [parseFloat(lon), parseFloat(lat)],
-        MaxResults: 1
+        Position: [parseFloat(lon), parseFloat(lat)], // Wajib [Lon, Lat]
+        Language: 'id',
+        MaxResults: 3
       })
     };
 
@@ -274,20 +273,21 @@ async function cekAlamatReal(lat, lon) {
       result.openStreetMap = osmData.display_name || 'Alamat tidak ditemukan di OSM';
     }
 
-    // Handle Response AWS Location Service
+    // Handle Response AWS Location
     if (!awsResponse.ok) {
       const errorText = await awsResponse.text();
+      console.log(`[AWS Reverse HTTP Error] ${awsResponse.status}:`, errorText);
       result.awsLocation = `Error AWS: ${awsResponse.status} - ${errorText}`;
     }
     else {
       const awsData = await awsResponse.json();
 
-      // AWS merespon dengan array "Results", alamat lengkap ada di property "Label"
       if (awsData.Results && awsData.Results.length > 0) {
         result.awsLocation = awsData.Results[0].Place.Label;
       }
       else {
-        result.awsLocation = `AWS Status: Alamat tidak ditemukan`;
+        console.log(`[AWS Reverse Empty] Response:`, JSON.stringify(awsData));
+        result.awsLocation = `AWS Status: Alamat tidak ditemukan (Response Kosong)`;
       }
     }
 

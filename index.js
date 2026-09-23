@@ -189,7 +189,7 @@ server.post('/api/account', async (req, res) => {
 
 // Proxy Endpoint: Pencarian Nama Jalan ke Koordinat (AWS Location)
 server.get('/api/search-address', async (req, res) => {
-  const query = req.query.q;
+  const { q: query, lat, lon } = req.query;
   const awsApiKey = jsonData.awsApiKey;
   const awsRegion = jsonData.awsRegion;
   const awsPlaceName = jsonData.awsPlaceName;
@@ -199,15 +199,23 @@ server.get('/api/search-address', async (req, res) => {
   }
 
   try {
-    const url = `https://places.${awsRegion}.amazonaws.com/places/v0/indexes/${awsPlaceName}/search/text?key=${awsApiKey}`;
+    const url = `https://places.geo.${awsRegion}.amazonaws.com/places/v0/indexes/${awsPlaceName}/search/text?key=${awsApiKey}`;
+
+    const bodyPayload = {
+      Text: query,
+      Language: 'id',
+      MaxResults: 3
+    };
+
+    // Tambahkan BiasPosition jika user sudah punya titik acuan di Map, agar AWS tidak mencari alamat secara global
+    if (lat && lon && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lon))) {
+      bodyPayload.BiasPosition = [parseFloat(lon), parseFloat(lat)];
+    }
 
     const options = {
-      method: 'POST', // AWS butuh POST
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        Text: query,
-        MaxResults: 1
-      })
+      body: JSON.stringify(bodyPayload)
     };
 
     const awsRes = await fetch(url, options);
@@ -216,17 +224,18 @@ server.get('/api/search-address', async (req, res) => {
     if (awsRes.ok && data.Results && data.Results.length > 0) {
       const place = data.Results[0].Place;
       return res.code(200).send({
-        // AWS mengembalikan Point array dalam format [Longitude, Latitude]
         lat: place.Geometry.Point[1],
         lon: place.Geometry.Point[0],
         address: place.Label
       });
     }
     else {
-      return res.code(404).send({ error: 'Alamat tidak ditemukan di AWS' });
+      console.log("[AWS Search UI Failed]", JSON.stringify(data));
+      return res.code(404).send({ error: data.Message || 'Alamat tidak ditemukan di AWS' });
     }
   }
   catch (e) {
+    console.error("[AWS Search UI Crash]", e.message);
     return res.code(500).send({ error: e.message });
   }
 });
@@ -243,15 +252,15 @@ server.get('/api/reverse-geocode', async (req, res) => {
   }
 
   try {
-    const url = `https://places.${awsRegion}.amazonaws.com/places/v0/indexes/${awsPlaceName}/search/position?key=${awsApiKey}`;
+    const url = `https://places.geo.${awsRegion}.amazonaws.com/places/v0/indexes/${awsPlaceName}/search/position?key=${awsApiKey}`;
 
     const options = {
-      method: 'POST', // AWS butuh POST
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        // Wajib: Format array AWS adalah [Longitude, Latitude]
         Position: [parseFloat(lon), parseFloat(lat)],
-        MaxResults: 1
+        Language: 'id',
+        MaxResults: 3
       })
     };
 
@@ -262,10 +271,12 @@ server.get('/api/reverse-geocode', async (req, res) => {
       return res.code(200).send({ address: data.Results[0].Place.Label });
     }
     else {
-      return res.code(404).send({ error: 'Alamat tidak ditemukan di AWS' });
+      console.log("[AWS Reverse UI Failed]", JSON.stringify(data));
+      return res.code(404).send({ error: data.Message || 'Alamat tidak ditemukan di AWS' });
     }
   }
   catch (e) {
+    console.error("[AWS Reverse UI Crash]", e.message);
     return res.code(500).send({ error: e.message });
   }
 });
@@ -632,15 +643,15 @@ server.get('/ui', (req, res) => {
           btn.innerText = '⏳';
 
           try {
-            const res = await fetch(\`/api/search-address?q=\${encodeURIComponent(query)}\`);
+            // Tambahkan currentLat dan currentLon ke URL param
+            const res = await fetch(\`/api/search-address?q=\${encodeURIComponent(query)}&lat=\${currentLat}&lon=\${currentLon}\`);
             const data = await res.json();
-
             if (data.lat && data.lon) {
               setLocation(data.lat, data.lon, false);
               document.getElementById('searchBox').value = data.address;
             }
             else {
-              alert('Alamat tidak ditemukan di sistem AwsLocation.');
+              alert(data.error || 'Alamat tidak ditemukan di sistem AwsLocation.');
             }
           }
           catch (err) {
