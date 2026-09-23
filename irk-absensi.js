@@ -948,8 +948,8 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
   };
 
   try {
-    const randomDelay = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
-    await delay(randomDelay);
+    const randomDelay1 = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
+    await delay(randomDelay1);
 
     options.body = JSON.stringify({
       Data: {
@@ -973,8 +973,8 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
       return false;
     }
 
-    const randomDelay = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
-    await delay(randomDelay);
+    const randomDelay2 = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
+    await delay(randomDelay2);
 
     options.body = JSON.stringify({
       Data: {
