@@ -187,28 +187,43 @@ server.post('/api/account', async (req, res) => {
   }
 });
 
-// Proxy Endpoint: Pencarian Nama Jalan ke Koordinat (Google Maps)
+// Proxy Endpoint: Pencarian Nama Jalan ke Koordinat (AWS Location)
 server.get('/api/search-address', async (req, res) => {
   const query = req.query.q;
-  const apiKey = jsonData.gcpApiKey;
+  const awsApiKey = jsonData.awsApiKey;
+  const awsRegion = jsonData.awsRegion;
+  const awsPlaceName = jsonData.awsPlaceName;
 
-  if (!query || !apiKey) return res.code(400).send({ error: 'Missing query or API Key' });
+  if (!query || !awsApiKey || !awsRegion || !awsPlaceName) {
+    return res.code(400).send({ error: 'Missing query or AWS Config' });
+  }
 
   try {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}`;
-    const gMapRes = await fetch(url);
-    const data = await gMapRes.json();
+    const url = `https://places.${awsRegion}.amazonaws.com/places/v0/indexes/${awsPlaceName}/search/text?key=${awsApiKey}`;
 
-    if (data.status === 'OK' && data.results.length > 0) {
-      const location = data.results[0].geometry.location;
+    const options = {
+      method: 'POST', // AWS butuh POST
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        Text: query,
+        MaxResults: 1
+      })
+    };
+
+    const awsRes = await fetch(url, options);
+    const data = await awsRes.json();
+
+    if (awsRes.ok && data.Results && data.Results.length > 0) {
+      const place = data.Results[0].Place;
       return res.code(200).send({
-        lat: location.lat,
-        lon: location.lng,
-        address: data.results[0].formatted_address
+        // AWS mengembalikan Point array dalam format [Longitude, Latitude]
+        lat: place.Geometry.Point[1],
+        lon: place.Geometry.Point[0],
+        address: place.Label
       });
     }
     else {
-      return res.code(404).send({ error: 'Alamat tidak ditemukan' });
+      return res.code(404).send({ error: 'Alamat tidak ditemukan di AWS' });
     }
   }
   catch (e) {
@@ -216,23 +231,38 @@ server.get('/api/search-address', async (req, res) => {
   }
 });
 
-// Proxy Endpoint: Koordinat ke Nama Jalan (Google Maps)
+// Proxy Endpoint: Koordinat ke Nama Jalan (AWS Location)
 server.get('/api/reverse-geocode', async (req, res) => {
   const { lat, lon } = req.query;
-  const apiKey = jsonData.gcpApiKey;
+  const awsApiKey = jsonData.awsApiKey;
+  const awsRegion = jsonData.awsRegion;
+  const awsPlaceName = jsonData.awsPlaceName;
 
-  if (!lat || !lon || !apiKey) return res.code(400).send({ error: 'Missing lat/lon or API Key' });
+  if (!lat || !lon || !awsApiKey || !awsRegion || !awsPlaceName) {
+    return res.code(400).send({ error: 'Missing lat/lon or AWS Config' });
+  }
 
   try {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${apiKey}`;
-    const gMapRes = await fetch(url);
-    const data = await gMapRes.json();
+    const url = `https://places.${awsRegion}.amazonaws.com/places/v0/indexes/${awsPlaceName}/search/position?key=${awsApiKey}`;
 
-    if (data.status === 'OK' && data.results.length > 0) {
-      return res.code(200).send({ address: data.results[0].formatted_address });
+    const options = {
+      method: 'POST', // AWS butuh POST
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        // Wajib: Format array AWS adalah [Longitude, Latitude]
+        Position: [parseFloat(lon), parseFloat(lat)],
+        MaxResults: 1
+      })
+    };
+
+    const awsRes = await fetch(url, options);
+    const data = await awsRes.json();
+
+    if (awsRes.ok && data.Results && data.Results.length > 0) {
+      return res.code(200).send({ address: data.Results[0].Place.Label });
     }
     else {
-      return res.code(404).send({ error: 'Alamat tidak ditemukan' });
+      return res.code(404).send({ error: 'Alamat tidak ditemukan di AWS' });
     }
   }
   catch (e) {
@@ -444,7 +474,7 @@ server.get('/ui', (req, res) => {
             </div>
           </div>
 
-          <label>Pilih Lokasi Absen (Peta [OpenStreetMap] & Pencarian GeoLoc [GoogleMaps])</label>
+          <label>Pilih Lokasi Absen (Peta [OpenStreetMap] & Pencarian GeoLoc [AwsLocation])</label>
           <button type="button" class="btn-locate" onclick="getUserLocation()">🎯 Gunakan Lokasi Saat Ini (GPS)</button>
 
           <div class="search-container">
@@ -457,11 +487,11 @@ server.get('/ui', (req, res) => {
           <div class="form-row">
             <div class="form-group" style="margin-bottom: 0;">
               <label>Latitude (Y)</label>
-              <input type="text" id="latitude" readonly required>
+              <input type="text" id="latitude" required> 
             </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label>Longitude (X)</label>
-              <input type="text" id="longitude" readonly required>
+              <input type="text" id="longitude" required>
             </div>
           </div>
 
@@ -512,12 +542,18 @@ server.get('/ui', (req, res) => {
 
         let osmMap, osmMarker;
 
-        async function setLocation(lat, lon, fetchAddress = true) {
+        async function setLocation(lat, lon, fetchAddress = true, updateInputs = true) {
           currentLat = parseFloat(lat);
           currentLon = parseFloat(lon);
 
-          document.getElementById('latitude').value = currentLat.toFixed(7);
-          document.getElementById('longitude').value = currentLon.toFixed(7);
+          if (isNaN(currentLat) || isNaN(currentLon)) {
+            return;
+          }
+
+          if (updateInputs) {
+            document.getElementById('latitude').value = currentLat.toFixed(7);
+            document.getElementById('longitude').value = currentLon.toFixed(7);
+          }
 
           if(osmMap && osmMarker) {
             osmMarker.setLatLng([currentLat, currentLon]);
@@ -525,7 +561,7 @@ server.get('/ui', (req, res) => {
           }
 
           if (fetchAddress) {
-            document.getElementById('searchBox').value = 'Mencari alamat via Google ...';
+            document.getElementById('searchBox').value = 'Mencari alamat...';
             try {
               const res = await fetch(\`/api/reverse-geocode?lat=\${currentLat}&lon=\${currentLon}\`);
               const data = await res.json();
@@ -552,6 +588,22 @@ server.get('/ui', (req, res) => {
 
         osmMap.on('click', function (e) {
             setLocation(e.latlng.lat, e.latlng.lng);
+        });
+
+        document.getElementById('latitude').addEventListener('input', function(e) {
+          const lat = parseFloat(e.target.value);
+          const lon = parseFloat(document.getElementById('longitude').value);
+          if(!isNaN(lat) && !isNaN(lon)){
+            setLocation(lat, lon, false, false);
+          }
+        });
+
+        document.getElementById('longitude').addEventListener('input', function(e) {
+          const lat = parseFloat(document.getElementById('latitude').value);
+          const lon = parseFloat(e.target.value);
+          if(!isNaN(lat) && !isNaN(lon)){
+            setLocation(lat, lon, false, false);
+          }
         });
 
         function getUserLocation() {
@@ -588,7 +640,7 @@ server.get('/ui', (req, res) => {
               document.getElementById('searchBox').value = data.address;
             }
             else {
-              alert('Alamat tidak ditemukan di sistem Google Maps.');
+              alert('Alamat tidak ditemukan di sistem AwsLocation.');
             }
           }
           catch (err) {

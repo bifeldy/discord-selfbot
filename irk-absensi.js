@@ -229,28 +229,42 @@ function laraDecrypt(base64Payload) {
 async function cekAlamatReal(lat, lon) {
   try {
     const osmUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
-    const gMapUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${jsonData.gcpApiKey}`;
+    const awsUrl = `https://places.${jsonData.awsRegion}.amazonaws.com/places/v0/indexes/${jsonData.awsPlaceName}/search/position?key=${jsonData.awsApiKey}`;
 
-    const options = {
+    const optionsOsm = {
       method: 'GET',
       headers: defaultHeader,
+    };
+
+    const optionsAws = {
+      method: 'POST',
+      headers: {
+        ...defaultHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        // Wajib: Format array AWS adalah [Longitude, Latitude]
+        Position: [parseFloat(lon), parseFloat(lat)],
+        MaxResults: 1
+      })
     };
 
     const result = {
       success: true,
       openStreetMap: null,
-      googleMap: null,
+      awsLocation: null,
       mapLinks: [
         `https://www.google.com/maps?q=${lat},${lon}`,
         `https://www.openstreetmap.org/search?query=${lat},${lon}`
       ]
     };
 
-    const [osmResponse, gMapResponse] = await Promise.all([
-      fetchWithTimeout(osmUrl, options),
-      fetchWithTimeout(gMapUrl, options)
+    const [osmResponse, awsResponse] = await Promise.all([
+      fetchWithTimeout(osmUrl, optionsOsm),
+      fetchWithTimeout(awsUrl, optionsAws)
     ]);
 
+    // Handle Response OSM
     if (!osmResponse.ok) {
       const errorText = await osmResponse.text();
       result.openStreetMap = `Error OSM: ${osmResponse.status} - ${errorText}`;
@@ -260,18 +274,20 @@ async function cekAlamatReal(lat, lon) {
       result.openStreetMap = osmData.display_name || 'Alamat tidak ditemukan di OSM';
     }
 
-    if (!gMapResponse.ok) {
-      const errorText = await gMapResponse.text();
-      result.googleMap = `Error GMap: ${gMapResponse.status} - ${errorText}`;
+    // Handle Response AWS Location Service
+    if (!awsResponse.ok) {
+      const errorText = await awsResponse.text();
+      result.awsLocation = `Error AWS: ${awsResponse.status} - ${errorText}`;
     }
     else {
-      const gMapData = await gMapResponse.json();
+      const awsData = await awsResponse.json();
 
-      if (gMapData.status === 'OK') {
-        result.googleMap = gMapData.results[0].formatted_address;
+      // AWS merespon dengan array "Results", alamat lengkap ada di property "Label"
+      if (awsData.Results && awsData.Results.length > 0) {
+        result.awsLocation = awsData.Results[0].Place.Label;
       }
       else {
-        result.googleMap = `Google Status: ${gMapData.status}`;
+        result.awsLocation = `AWS Status: Alamat tidak ditemukan`;
       }
     }
 
@@ -594,6 +610,9 @@ async function logNotify(msg, userNik, discordClient = null) {
 // -- --
 
 async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null, checkOnly = false) {
+  const randomDelay = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
+  await delay(randomDelay);
+
   const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
 
   const maskedNik = userNik.length > 4 ? userNik.substring(0, 2) + '*'.repeat(userNik.length - 4) + userNik.substring(userNik.length - 2) : userNik;
@@ -818,7 +837,7 @@ async function addEditIrk(discordId, msgData) {
     if (lat || lon) {
       alamat = await cekAlamatReal(lat, lon);
       if (!alamat.success) {
-        return `<@${discordId}> ${userNik} :: [KOORDINAT] Alamat Tidak Tersedia, Silahkan Ambil Lat(Y) Lon(X) Dari URL OpenStreetMap / GoogleMap`;
+        return `<@${discordId}> ${userNik} :: [KOORDINAT] Alamat Tidak Tersedia, Silahkan Ambil Lat(Y) Lon(X) Dari URL OpenStreetMap / AwsLocation`;
       }
     }
 
@@ -902,7 +921,7 @@ async function addEditIrk(discordId, msgData) {
       [Lat (Y) = ${lat}, Lon (X) = ${lon}]
       ${alamat.mapLinks.join('\n')}
       OSM :: ${alamat.openStreetMap}
-      GM :: ${alamat.googleMap}
+      AWS :: ${alamat.awsLocation}
     `.split('\n').map(line => line.trim()).filter(line => line).join('\n');
   }
   finally {
@@ -929,6 +948,9 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
   };
 
   try {
+    const randomDelay = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
+    await delay(randomDelay);
+
     options.body = JSON.stringify({
       Data: {
         code: "201",
@@ -951,7 +973,7 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
       return false;
     }
 
-    const randomDelay = (Math.floor(Math.random() * (45 - 15 + 1)) + 15) * 1000;
+    const randomDelay = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
     await delay(randomDelay);
 
     options.body = JSON.stringify({
@@ -989,9 +1011,6 @@ async function processAccount(credential, current_date, discordClient, forceRun,
   if (credential.inactive) {
     return;
   }
-
-  const randomDelay = (Math.floor(Math.random() * (45 - 15 + 1)) + 15) * 1000;
-  await delay(randomDelay);
 
   let startMins = null;
   let endMins = null;
@@ -1098,7 +1117,6 @@ async function processAccount(credential, current_date, discordClient, forceRun,
         credential.pulang = new Date().toISOString();
       }
 
-      // --- PERUBAHAN PENTING: Gunakan Mutex Saat Save Config ---
       const release = await mtx.acquire();
       try {
         fs.writeFileSync(jsonConfig, JSON.stringify(jsonData, null, 2));
@@ -1137,6 +1155,9 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
   if (!discordClient) {
     return;
   }
+
+  const randomDelay = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
+  await delay(randomDelay);
 
   const guild = discordClient.guilds.get(jsonData.irk.guildId);
   const channel = guild.channels.get(jsonData.irk.channelId);
@@ -1230,10 +1251,6 @@ function startCron(discordClient = null) {
     try {
       isPresensiRunning = true;
       jsonData = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
-
-      const randomDelay = (Math.floor(Math.random() * (45 - 15 + 1)) + 15) * 1000;
-      await delay(randomDelay);
-
       const current_date = getCurrentJakartaDate();
       await runCronJobSchedulerIrk(current_date, discordClient);
     }
@@ -1254,10 +1271,6 @@ function startCron(discordClient = null) {
 
     try {
       isCleanupRunning = true;
-
-      const randomDelay = (Math.floor(Math.random() * (45 - 15 + 1)) + 15) * 1000;
-      await delay(randomDelay);
-
       const nowJakarta = getCurrentJakartaDate();
       await runCronJobSchedulerCleanUp(nowJakarta, discordClient);
     }
