@@ -236,7 +236,7 @@ server.get('/api/search-address', async (req, res) => {
   }
   catch (e) {
     console.error("[AWS Search UI Crash]", e.message);
-    return res.code(500).send({ error: e.message });
+    return res.code(500).send({ error: 'Terjadi kesalahan' });
   }
 });
 
@@ -277,7 +277,7 @@ server.get('/api/reverse-geocode', async (req, res) => {
   }
   catch (e) {
     console.error("[AWS Reverse UI Crash]", e.message);
-    return res.code(500).send({ error: e.message });
+    return res.code(500).send({ error: 'Terjadi kesalahan' });
   }
 });
 

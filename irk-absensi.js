@@ -266,6 +266,7 @@ async function cekAlamatReal(lat, lon) {
     // Handle Response OSM
     if (!osmResponse.ok) {
       const errorText = await osmResponse.text();
+      console.log(`[OSM Reverse HTTP Error] ${osmResponse.status}:`, errorText);
       result.openStreetMap = `Error OSM: ${osmResponse.status} - ${errorText}`;
     }
     else {
@@ -294,9 +295,10 @@ async function cekAlamatReal(lat, lon) {
     return result;
   }
   catch (e) {
+    console.error("[Reverse Crash]", e.message);
     return {
       success: false,
-      message: e.message
+      message: 'Terjadi kesalahan'
     };
   }
 }
