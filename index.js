@@ -455,7 +455,9 @@ server.get('/ui', (req, res) => {
           <div class="form-row">
             <small style="text-align: center;">
               Password akan anti-expired,
-              diganti menjadi "123qweASD!@#" pada jam 03:00,
+              setiap hari Rabu akan diganti menjadi "123qweASD!@#",
+              durasi 10 menit (ketahan ga bisa langsung pakai password baru),
+              pada sekitar jam 02:40-02:50 subuh,
               kemudian dikembalikan menjadi password asli anda.
               <br /><br />
               Karena ini hanya untuk biar ga lupa presensi saja,

@@ -951,8 +951,8 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
   };
 
   try {
-    const randomDelay1 = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
-    await delay(randomDelay1);
+    const randomDelay = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
+    await delay(randomDelay);
 
     options.body = JSON.stringify({
       Data: {
@@ -975,9 +975,12 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
       await logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_TEMPORARY] ${errMsg}`);
       return false;
     }
+    else {
+      await logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_TEMPORARY] Password Sementara Berhasil Diganti`);
+    }
 
-    const randomDelay2 = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
-    await delay(randomDelay2);
+    // Tahan 10 Menit Buat Sync Read Replica
+    await delay(10 * 60 * 1000);
 
     options.body = JSON.stringify({
       Data: {
@@ -998,6 +1001,9 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
       const errMsg = data2.Result?.result || data2.Message || 'Terjadi Kesalahan ~';
       await logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_ORIGINAL] ${errMsg}`);
       return false;
+    }
+    else {
+      await logger(`<@${discordId}> ${maskedNik} :: [PASSWORD_ORIGINAL] Password Asli Berhasil Dikembalikan`);
     }
 
     return true;
@@ -1080,13 +1086,17 @@ async function processAccount(credential, current_date, discordClient, forceRun,
   }
 
   let checkOnly = false;
-  if (current_date.getHours() === 3 && current_date.getMinutes() === 0) {
-    const res = await refreshPassword(
-      credential.authorId,
-      credential.nik,
-      credential.password,
-      discordClient
-    );
+  if (current_date.getHours() === 2 && current_date.getMinutes() === 40) {
+    let res = true;
+
+    if (dayName === 'Rabu') {
+      res = await refreshPassword(
+        credential.authorId,
+        credential.nik,
+        credential.password,
+        discordClient
+      );
+    }
 
     if (res) {
       checkOnly = true;
