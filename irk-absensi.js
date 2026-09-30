@@ -1096,6 +1096,9 @@ async function processAccount(credential, current_date, discordClient, forceRun,
         credential.password,
         discordClient
       );
+
+      // Tahan 10 Menit Buat Sync Read Replica
+      await delay(10 * 60 * 1000);
     }
 
     if (res) {
