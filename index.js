@@ -9,7 +9,7 @@ const { Mutex } = require('async-mutex');
 const fetch = require('node-fetch');
 const webpush = require('web-push');
 
-const { addEditIrk, startCron, infoCoordAddr } = require('./irk-absensi');
+const { addEditIrk, startCron, infoCoordAddr, forceOfficeCheckin } = require('./irk-absensi');
 
 const mtx = new Mutex();
 
@@ -341,6 +341,34 @@ server.post('/api/subscribe', async (req, res) => {
   }
 });
 
+// /api/force-office-checkin
+server.post('/api/force-office-checkin', async (req, res) => {
+  const release = await mtx.acquire();
+  try {
+    const { nik } = req.body;
+    if (!nik) {
+      return res.code(400).send({ error: 'NIK tidak boleh kosong' });
+    }
+
+    let config = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
+    const idx = config.irk.accounts.findIndex(a => a.nik === nik);
+
+    if (idx !== -1) {
+      await forceOfficeCheckin(nik, client);
+      res.code(200).send({ success: true });
+    }
+    else {
+      res.code(404).send({ error: 'NIK belum terdaftar, silahkan simpan data presensi terlebih dahulu!' });
+    }
+  }
+  catch (err) {
+    res.code(500).send({ error: err.message });
+  }
+  finally {
+    release();
+  }
+});
+
 server.get('/sw.js', (req, res) => {
   const swCode = `
     self.addEventListener('push', function(event) {
@@ -509,6 +537,9 @@ server.get('/ui', (req, res) => {
           </div>
 
           <button type="submit">💾 Simpan Data Akun</button>
+          <button type="button" onclick="forceOfficeCheckin()" style="background: purple;">
+            🏢 Paksa Absen di Kantor
+          </button>
         </form>
 
         <hr style="border-color: #40444b; margin: 15px 0 15px 0;" />
@@ -678,6 +709,13 @@ server.get('/ui', (req, res) => {
           const savedNik = localStorage.getItem('irk_saved_nik');
           if (savedNik) {
             document.getElementById('nik').value = savedNik;
+          }
+          else {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlNik = urlParams.get('nik');
+            if (urlNik) {
+              document.getElementById('nik').value = urlNik;
+            }
           }
 
           checkPushStatus();
@@ -858,6 +896,31 @@ server.get('/ui', (req, res) => {
         window.addEventListener('DOMContentLoaded', async () => {
           checkPushStatus();
         });
+
+        async function forceOfficeCheckin() {
+          const nik = document.getElementById('nik').value.trim();
+          if (!nik) {
+            return alert('Silahkan ketik NIK kamu dulu di form atas!');
+          }
+          try {
+            const res = await fetch('/api/force-office-checkin', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nik: nik })
+            });
+            const data = await res.json();
+            if (data.success) {
+              alert('Berhasil memaksa absen di kantor!');
+            }
+            else {
+              alert('Gagal: ' + (data.error || 'Tidak diketahui'));
+            }
+          }
+          catch (err) {
+            console.error('Gagal memaksa absen di kantor:', err);
+            alert('Gagal memaksa absen di kantor.');
+          }
+        }
 
         fetchLogs();
         setInterval(fetchLogs, 10000);

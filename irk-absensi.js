@@ -191,8 +191,9 @@ async function writeLogToFile(logMsg, userNik = null) {
 
 // --
 
-const userLat = 'eyJpdiI6ImRQM3hIRnI5SDREMThXaWdVZU0rWGc9PSIsInZhbHVlIjoicFRLcVBvd1ZZV3Z1cnM0cHYzZ2pzUT09In0=';
-const userLon = 'eyJpdiI6InJJSEh2QjFLL2prd05keWZBRHpTN0E9PSIsInZhbHVlIjoiSXZjcVMwWW9OMVIwbXJJWXJOMHNTQT09In0=';
+// Default Titik Kantor
+const userLat = 'eyJpdiI6IlNSa0w2c081TzF0VDVLajVDd1ltV3c9PSIsInZhbHVlIjoibS9tN205YkpZQXdOWnVVODdoK1hTUT09In0=';
+const userLon = 'eyJpdiI6IlAwTlhWUVVGdXFXN3VvLzAxV1RvdXc9PSIsInZhbHVlIjoidjRJb0t1YVZjNUJ6S3FDanlKMGNsdz09In0=';
 
 function laraEncrypt(plainText) {
   const key = Buffer.from(jsonData.irk.masterKey, 'base64');
@@ -475,8 +476,9 @@ async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTi
 async function presensipost(userNik, cookies, lat = null, lon = null) {
   const url = `${jsonData.irk.baseUri}/presensi/post`;
 
-  const jitterLat = (parseFloat(lat || '-72.4522217') + (Math.random() - 0.5) * 0.00006).toFixed(7);
-  const jitterLon = (parseFloat(lon || '0.9438507') + (Math.random() - 0.5) * 0.00006).toFixed(7);
+  // Default Titik Kantor Tanpa Jitter
+  const jitterLat = lat ? (parseFloat(lat) + (Math.random() - 0.5) * 0.00006).toFixed(7) : '-6.1105416';
+  const jitterLon = lon ? (parseFloat(lon) + (Math.random() - 0.5) * 0.00006).toFixed(7) : '106.7393686';
 
   const encLat = jsonData.irk.masterKey ? laraEncrypt(jitterLat) : userLat;
   const encLong = jsonData.irk.masterKey ? laraEncrypt(jitterLon) : userLon;
@@ -546,7 +548,7 @@ async function sendNotif(msg, userNik = null) {
         JSON.stringify({
           title: 'IRK Absen',
           body: msgClean,
-          url: '/ui'
+          url: `/ui?nik=${accountData.nik}`
         })
       );
     }
@@ -611,7 +613,7 @@ async function logNotify(msg, userNik, discordClient = null) {
 
 // -- --
 
-async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null, checkOnly = false) {
+async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null, checkOnly = false, forceRun = false) {
   const randomDelay = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
   await delay(randomDelay);
 
@@ -688,8 +690,10 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     const isTargetWfhToday = tanggal_wfh.includes(current_yyyyMMdd_dashHyphens);
 
     if (!isPresensiAvailable || !isTargetWfhToday) {
-      await logger(`<@${discordId}> ${maskedNik} :: [JADWAL] ${dayName} :: Tidak Ada WFH, Mungkin Masuk Kantor / Libur Nasional ~`);
-      return true;
+      if (!forceRun) {
+        await logger(`<@${discordId}> ${maskedNik} :: [JADWAL] ${dayName} :: Tidak Ada WFH, Mungkin Masuk Kantor / Libur Nasional ~`);
+        return true;
+      }
     }
 
     if (checkOnly) {
@@ -726,12 +730,14 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     if (_tempResponseData.data.length === 1) {
       const riwayatAbsenSore = _tempResponseData.data[0];
       if (riwayatAbsenSore.location_out?.length > 0) {
-        await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIGET_HISTORY] Sudah Ada Data Presensi Sore (Manual)`);
-        return true;
+        if (!forceRun) {
+          await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIGET_HISTORY] Sudah Ada Data Presensi Sore (Manual)`);
+          return true;
+        }
       }
     }
 
-    const presensipostResponse = await presensipost(userNik, cookies, lat, lon);
+    const presensipostResponse = await presensipost(userNik, cookies, forceRun ? null : lat, forceRun ? null : lon);
     _tempResponseData = await presensipostResponse.json();
     if (!presensipostResponse.ok || _tempResponseData.statuscode < 200 || _tempResponseData.statuscode > 299 || _tempResponseData.status === 0) {
       const errMsg = _tempResponseData.message || _tempResponseData.result || 'Terjadi Kesalahan ~';
@@ -1016,7 +1022,7 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
 
 // --
 
-async function processAccount(credential, current_date, discordClient, forceRun, current_yyyyMMdd_dashHyphens, dayName, currentMins) {
+async function processAccount(credential, current_date, discordClient, current_yyyyMMdd_dashHyphens, dayName, currentMins, forceRun = false) {
   if (credential.inactive) {
     return;
   }
@@ -1121,7 +1127,8 @@ async function processAccount(credential, current_date, discordClient, forceRun,
         credential.latitude,
         credential.longitude,
         discordClient,
-        checkOnly
+        checkOnly,
+        forceRun
       );
     }
 
@@ -1145,7 +1152,7 @@ async function processAccount(credential, current_date, discordClient, forceRun,
   }
 }
 
-async function runCronJobSchedulerIrk(current_date, discordClient = null, forceRun = false) {
+async function runCronJobSchedulerIrk(current_date, discordClient = null) {
   const currentMins = current_date.getHours() * 60 + current_date.getMinutes();
   const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
   const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
@@ -1156,7 +1163,6 @@ async function runCronJobSchedulerIrk(current_date, discordClient = null, forceR
       credential,
       current_date,
       discordClient,
-      forceRun,
       current_yyyyMMdd_dashHyphens,
       dayName,
       currentMins
@@ -1247,6 +1253,29 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
   }
 }
 
+async function forceOfficeCheckin(userNik, discordClient = null) {
+  const current_date = getCurrentJakartaDate();
+  const currentMins = current_date.getHours() * 60 + current_date.getMinutes();
+  const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
+  const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
+  const credential = jsonData.irk.accounts.find(acc => acc.nik === userNik);
+  if (!credential) {
+    throw new Error(`Akun dengan NIK ${userNik} tidak terdaftar`);
+  }
+  if (credential.inactive) {
+    throw new Error(`Akun dengan NIK ${userNik} sedang tidak aktif`);
+  }
+  await processAccount(
+    credential,
+    current_date,
+    discordClient,
+    current_yyyyMMdd_dashHyphens,
+    dayName,
+    currentMins,
+    true
+  );
+}
+
 // --
 
 function startCron(discordClient = null) {
@@ -1330,5 +1359,6 @@ function startCron(discordClient = null) {
 module.exports = {
   addEditIrk,
   startCron,
-  infoCoordAddr
+  infoCoordAddr,
+  forceOfficeCheckin
 }
