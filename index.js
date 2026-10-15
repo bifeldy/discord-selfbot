@@ -538,7 +538,7 @@ server.get('/ui', (req, res) => {
 
           <button type="submit">💾 Simpan Data Akun</button>
           <button type="button" onclick="forceOfficeCheckin()" style="background: purple;">
-            🏢 Paksa Absen di Kantor
+            🏢 Paksa Absen Di Kantor Sekarang
           </button>
         </form>
 
