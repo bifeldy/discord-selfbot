@@ -315,13 +315,13 @@ server.get('/api/vapidPublicKey', (req, res) => {
 server.post('/api/subscribe', async (req, res) => {
   const release = await mtx.acquire();
   try {
-    const { nik, subscription } = req.body;
-    if (!nik || !subscription) {
+    const { nik, password, subscription } = req.body;
+    if (!nik || !password || !subscription) {
       return res.code(400).send({ error: 'Data tidak lengkap' });
     }
 
     let config = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
-    const idx = config.irk.accounts.findIndex(a => a.nik === nik);
+    const idx = config.irk.accounts.findIndex(a => a.nik === nik && a.password === password);
 
     if (idx !== -1) {
       config.irk.accounts[idx].pushSubscription = subscription; // Simpan token browser!
@@ -330,7 +330,7 @@ server.post('/api/subscribe', async (req, res) => {
       res.code(200).send({ success: true });
     }
     else {
-      res.code(404).send({ error: 'NIK belum terdaftar, silahkan simpan data presensi terlebih dahulu!' });
+      res.code(404).send({ error: 'Akun belum terdaftar, silahkan simpan data presensi terlebih dahulu!' });
     }
   }
   catch (err) {
@@ -345,20 +345,16 @@ server.post('/api/subscribe', async (req, res) => {
 server.post('/api/force-office-checkin', async (req, res) => {
   const release = await mtx.acquire();
   try {
-    const { nik } = req.body;
-    if (!nik) {
-      return res.code(400).send({ error: 'NIK tidak boleh kosong' });
+    const { nik, password } = req.body;
+    if (!nik || !password) {
+      return res.code(400).send({ error: 'Data tidak lengkap' });
     }
 
-    let config = JSON.parse(fs.readFileSync(jsonConfig, { encoding: 'utf8' }));
-    const idx = config.irk.accounts.findIndex(a => a.nik === nik);
-
-    if (idx !== -1) {
-      await forceOfficeCheckin(nik, client);
+    const result = await forceOfficeCheckin(nik, password, client);
+    if (result) {
       res.code(200).send({ success: true });
-    }
-    else {
-      res.code(404).send({ error: 'NIK belum terdaftar, silahkan simpan data presensi terlebih dahulu!' });
+    } else {
+      res.code(400).send({ error: 'Gagal melakukan absen paksa' });
     }
   }
   catch (err) {
@@ -718,6 +714,11 @@ server.get('/ui', (req, res) => {
             }
           }
 
+          const savedPassword = localStorage.getItem('irk_saved_password');
+          if (savedPassword) {
+            document.getElementById('password').value = savedPassword;
+          }
+
           checkPushStatus();
           document.getElementById('nik').addEventListener('input', checkPushStatus);
         };
@@ -725,6 +726,7 @@ server.get('/ui', (req, res) => {
         document.getElementById('irkForm').addEventListener('submit', async (e) => {
           e.preventDefault();
           localStorage.setItem('irk_saved_nik', document.getElementById('nik').value);
+          localStorage.setItem('irk_saved_password', document.getElementById('password').value);
           const payload = {
             nik: document.getElementById('nik').value,
             password: document.getElementById('password').value,
@@ -762,7 +764,7 @@ server.get('/ui', (req, res) => {
 
         async function checkPushStatus() {
           const btn = document.getElementById('btnNotif');
-          const inputNik = document.getElementById('nik').value.trim();
+          const inputNik = document.getElementById('nik').value;
           const registeredNik = localStorage.getItem('irk_registered_nik');
 
           if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -802,12 +804,14 @@ server.get('/ui', (req, res) => {
         }
 
         async function requestNotifPermission() {
-          const nik = document.getElementById('nik').value.trim();
-          if (!nik) {
-            return alert('Silahkan ketik NIK kamu dulu di form atas!');
+          const nik = document.getElementById('nik').value;
+          const password = document.getElementById('password').value;
+          if (!nik || !password) {
+            return alert('Silahkan ketik NIK dan password kamu dulu di form atas!');
           }
 
           localStorage.setItem('irk_saved_nik', nik);
+          localStorage.setItem('irk_saved_password', password);
 
           if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -839,7 +843,7 @@ server.get('/ui', (req, res) => {
             const subRes = await fetch('/api/subscribe', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ nik: nik, subscription: subscription })
+              body: JSON.stringify({ nik: nik, password: password, subscription: subscription })
             });
 
             const subData = await subRes.json();
@@ -898,15 +902,16 @@ server.get('/ui', (req, res) => {
         });
 
         async function forceOfficeCheckin() {
-          const nik = document.getElementById('nik').value.trim();
-          if (!nik) {
-            return alert('Silahkan ketik NIK kamu dulu di form atas!');
+          const nik = document.getElementById('nik').value;
+          const password = document.getElementById('password').value;
+          if (!nik || !password) {
+            return alert('Silahkan ketik NIK dan password kamu dulu di form atas!');
           }
           try {
             const res = await fetch('/api/force-office-checkin', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ nik: nik })
+              body: JSON.stringify({ nik: nik, password: password })
             });
             const data = await res.json();
             if (data.success) {

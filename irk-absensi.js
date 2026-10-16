@@ -1024,7 +1024,7 @@ async function refreshPassword(discordId, userNik, userPassword, discordClient =
 
 async function processAccount(credential, current_date, discordClient, current_yyyyMMdd_dashHyphens, dayName, currentMins, forceRun = false) {
   if (credential.inactive) {
-    return;
+    return false;
   }
 
   let startMins = null;
@@ -1115,6 +1115,7 @@ async function processAccount(credential, current_date, discordClient, current_y
   // Run
   if (forceRun || isNeedRunBerangkat || isNeedRunPulang || checkOnly) {
     let res = false;
+
     if (dayName === 'Sabtu' || dayName === 'Minggu') {
       res = true;
     }
@@ -1149,7 +1150,11 @@ async function processAccount(credential, current_date, discordClient, current_y
         release();
       }
     }
+
+    return res;
   }
+
+  return false;
 }
 
 async function runCronJobSchedulerIrk(current_date, discordClient = null) {
@@ -1253,19 +1258,16 @@ async function runCronJobSchedulerCleanUp(nowJakarta, discordClient = null) {
   }
 }
 
-async function forceOfficeCheckin(userNik, discordClient = null) {
+async function forceOfficeCheckin(userNik, userPassword, discordClient = null) {
   const current_date = getCurrentJakartaDate();
   const currentMins = current_date.getHours() * 60 + current_date.getMinutes();
   const current_yyyyMMdd_dashHyphens = getFormattedDate(current_date);
   const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
-  const credential = jsonData.irk.accounts.find(acc => acc.nik === userNik);
-  if (!credential) {
-    throw new Error(`Akun dengan NIK ${userNik} tidak terdaftar`);
+  const credential = jsonData.irk.accounts.find(acc => acc.nik === userNik && acc.password === userPassword);
+  if (!credential || credential?.inactive) {
+    throw new Error(`Username / Password salah atau tidak aktif!!`);
   }
-  if (credential.inactive) {
-    throw new Error(`Akun dengan NIK ${userNik} sedang tidak aktif`);
-  }
-  await processAccount(
+  return processAccount(
     credential,
     current_date,
     discordClient,
