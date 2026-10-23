@@ -778,7 +778,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     // const absenMasukLokasi = riwayatAbsen.location_in?.join(', ') || '??, ??';
     // const absenKeluarLokasi = riwayatAbsen.location_out?.join(', ') || '??, ??';
     await logger(`
-      <@${discordId}> ${maskedNik} :: ${dayName}
+      <@${discordId}> ${maskedNik} :: ${dayName} (${forceRun ? 'WFO' : 'WFH'})
       [BERANGKAT] ${jamMasuk} => ${absenMasukJam}
       [PULANG] ${jamKeluar} => ${absenKeluarJam}
     `.split('\n').map(line => line.trim()).filter(line => line).join('\n'));
