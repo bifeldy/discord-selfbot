@@ -474,14 +474,26 @@ async function presensiget(current_yyyyMMdd_dashHyphens, userNik, cookies, getTi
 }
 
 async function presensipost(userNik, cookies, lat = null, lon = null) {
-  const url = `${jsonData.irk.baseUri}/presensi/post`;
+  let url = `${jsonData.irk.baseUri}/presensi`;
+  if (lat == null || lon == null) {
+    url += 'wfo';
+  }
+  url += '/post';
 
   // Default Titik Kantor Tanpa Jitter
-  const jitterLat = lat ? (parseFloat(lat) + (Math.random() - 0.5) * 0.00006).toFixed(7) : '-6.1105416';
-  const jitterLon = lon ? (parseFloat(lon) + (Math.random() - 0.5) * 0.00006).toFixed(7) : '106.7393686';
+  let jitterLat = '-6.1105416';
+  let jitterLon = '106.7393686';
+  if (lat != null && lon != null) {
+    jitterLat = (parseFloat(lat) + (Math.random() - 0.5) * 0.00006).toFixed(7);
+    jitterLon = (parseFloat(lon) + (Math.random() - 0.5) * 0.00006).toFixed(7);
+  }
 
-  const encLat = jsonData.irk.masterKey ? laraEncrypt(jitterLat) : userLat;
-  const encLong = jsonData.irk.masterKey ? laraEncrypt(jitterLon) : userLon;
+  let encLat = userLat;
+  let encLong = userLon;
+  if (jsonData.irk.masterKey != null) {
+    encLat = laraEncrypt(jitterLat);
+    encLong = laraEncrypt(jitterLon);
+  }
 
   const options = {
     method: 'POST',
