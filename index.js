@@ -479,9 +479,9 @@ server.get('/ui', (req, res) => {
           <div class="form-row">
             <small style="text-align: center;">
               Password akan anti-expired,
-              setiap hari Rabu akan diganti menjadi "123qweASD!@#",
-              durasi 10 menit (ketahan ga bisa langsung pakai password baru),
-              pada sekitar jam 02:40-02:50 subuh,
+              setiap hari Rabu akan diganti menjadi [REDACTED],
+              durasi [REDACTED] (ketahan ga bisa langsung pakai password baru),
+              pada sekitar jam [REDACTED] subuh,
               kemudian dikembalikan menjadi password asli anda.
               <br /><br />
               Karena ini hanya untuk biar ga lupa presensi saja,
@@ -503,11 +503,11 @@ server.get('/ui', (req, res) => {
           <div class="form-row">
             <div class="form-group" style="margin-bottom: 0;">
               <label>Target Masuk (Pagi)</label>
-              <input type="time" id="targetPagi" value="07:58" required>
+              <input type="time" id="targetPagi" value="07:58" min="00:00" max="11:59" required>
             </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label>Target Pulang (Sore)</label>
-              <input type="time" id="targetSore" value="23:58" required>
+              <input type="time" id="targetSore" value="23:58" min="12:00" max="23:59" required>
             </div>
           </div>
 
@@ -533,7 +533,7 @@ server.get('/ui', (req, res) => {
           </div>
 
           <button type="submit">💾 Simpan Data Akun</button>
-          <button type="button" onclick="forceOfficeCheckin()" style="background: purple;">
+          <button id="btnForceOfficeCheckin" type="button" onclick="forceOfficeCheckin()" style="background: purple;">
             🏢 Paksa Absen Di Kantor Sekarang
           </button>
         </form>
@@ -907,7 +907,11 @@ server.get('/ui', (req, res) => {
           if (!nik || !password) {
             return alert('Silahkan ketik NIK dan password kamu dulu di form atas!');
           }
+          const btn = document.getElementById('btnForceOfficeCheckin');
+          const originalText = btn.innerText;
           try {
+            btn.innerText = '⏳ Mohon Menunggu ...';
+            btn.disabled = true;
             const res = await fetch('/api/force-office-checkin', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -924,6 +928,10 @@ server.get('/ui', (req, res) => {
           catch (err) {
             console.error('Gagal memaksa absen di kantor:', err);
             alert('Gagal memaksa absen di kantor.');
+          }
+          finally {
+            btn.disabled = false;
+            btn.innerText = originalText;
           }
         }
 
