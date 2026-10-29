@@ -48,15 +48,20 @@ const rl = readline.createInterface({
 });
 
 server.get('/oembed', (req, res) => {
-  res.code(200).header('Content-Type', 'application/json; charset=utf-8').send({
-    author_name: req.query.author_name,
-    author_url: req.query.author_url,
-    provider_name: req.query.site_name,
-    provider_url: req.query.site_url,
-    title: req.query.title,
-    type: 'link',
-    version: '1.0'
-  });
+  try {
+    res.code(200).header('Content-Type', 'application/json; charset=utf-8').send({
+      author_name: req.query.author_name,
+      author_url: req.query.author_url,
+      provider_name: req.query.site_name,
+      provider_url: req.query.site_url,
+      title: req.query.title,
+      type: 'link',
+      version: '1.0'
+    });
+  }
+  catch {
+    res.redirect(302, `https://www.fanshare.id`);
+  }
 });
 
 server.get('/', (req, res) => {
@@ -168,7 +173,7 @@ server.get('/', (req, res) => {
       </html>
     `);
   }
-  catch (e) {
+  catch {
     res.redirect(302, `https://www.fanshare.id`);
   }
 });
