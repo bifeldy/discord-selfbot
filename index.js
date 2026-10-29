@@ -60,107 +60,117 @@ server.get('/oembed', (req, res) => {
 });
 
 server.get('/', (req, res) => {
-  const site_name = req.query.site_name;
-  const site_url = req.query.site_url;
-  const title = req.query.title;
-  const descriptions = req.query.descriptions;
-  const author_name = req.query.author_name;
-  const author_url = req.query.author_url;
-  const image_url = req.query.image_url;
-  const video_url = req.query.video_url;
-  const width = req.query.width;
-  const height = req.query.height;
-  const mime = req.query.mime;
-  const icon_url = req.query.icon_url;
-  const imgTagSmall = `
-    <meta name="og:image" property="og:image" content="${icon_url}" />
-    <meta name="twitter:image" property="twitter:image" content="${icon_url}" />
-  `;
-  const imgTagBig = `
-    <meta name="og:image" property="og:image" content="${image_url}" />
-    <meta name="twitter:image" property="twitter:image" content="${image_url}" />
-    <meta name="twitter:card" property="twitter:card" content="summary_large_image" />
-  `;
-  const vidTag = `
-    <meta name="og:video" property="og:video" content="${video_url}" />
-    <meta name="og:video:secure_url" property="og:video:secure_url" content="${video_url}" />
-    <meta name="og:video:width" property="og:video:width" content="${width}" />
-    <meta name="og:video:height" property="og:video:height" content="${height}" />
-    <meta name="og:video:type" property="og:video:type" content="${mime}" />
-    <meta property="twitter:card" content="player" />
-    <meta name="twitter:player" property="twitter:player" content="${video_url}" />
-    <meta name="twitter:player:stream" property="twitter:player:stream" content="${video_url}" />
-    <meta name="twitter:player:width" property="twitter:player:width" content="${width}" />
-    <meta name="twitter:player:height" property="twitter:player:height" content="${height}" />
-    <meta name="twitter:player:stream:content_type" property="twitter:player:stream:content_type" content="${mime}" />
-  `;
-  let urlParam = ``;
-  urlParam += `title=${encodeURIComponent(title)}`;
-  urlParam += `&author_name=${encodeURIComponent(author_name)}`;
-  urlParam += `&author_url=${encodeURIComponent(author_url)}`;
-  urlParam += `&site_name=${encodeURIComponent(site_name)}`;
-  urlParam += `&site_url=${encodeURIComponent(site_url)}`;
-  res.code(200).header('Content-Type', 'text/html; charset=utf-8').send(`
-    <!DOCTYPE html>
-    <html lang="in">
+  try {
+    const site_name = req.query.site_name;
+    const site_url = req.query.site_url;
+    const title = req.query.title;
+    const descriptions = req.query.descriptions;
+    const author_name = req.query.author_name;
+    const author_url = req.query.author_url;
+    const image_url = req.query.image_url;
+    const video_url = req.query.video_url;
+    const width = req.query.width;
+    const height = req.query.height;
+    const mime = req.query.mime;
+    const icon_url = req.query.icon_url;
 
-      <head>
-        <base href="/" />
+    const imgTagSmall = `
+      <meta name="og:image" property="og:image" content="${icon_url}" />
+      <meta name="twitter:image" property="twitter:image" content="${icon_url}" />
+    `;
 
-        <meta charset="utf-8" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta http-equiv="refresh" content="0; url=${site_url}" />
+    const imgTagBig = `
+      <meta name="og:image" property="og:image" content="${image_url}" />
+      <meta name="twitter:image" property="twitter:image" content="${image_url}" />
+      <meta name="twitter:card" property="twitter:card" content="summary_large_image" />
+    `;
 
-        <meta name="viewport" property="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" property="theme-color" content="#69f0ae" />
+    const vidTag = `
+      <meta name="og:video" property="og:video" content="${video_url}" />
+      <meta name="og:video:secure_url" property="og:video:secure_url" content="${video_url}" />
+      <meta name="og:video:width" property="og:video:width" content="${width}" />
+      <meta name="og:video:height" property="og:video:height" content="${height}" />
+      <meta name="og:video:type" property="og:video:type" content="${mime}" />
+      <meta property="twitter:card" content="player" />
+      <meta name="twitter:player" property="twitter:player" content="${video_url}" />
+      <meta name="twitter:player:stream" property="twitter:player:stream" content="${video_url}" />
+      <meta name="twitter:player:width" property="twitter:player:width" content="${width}" />
+      <meta name="twitter:player:height" property="twitter:player:height" content="${height}" />
+      <meta name="twitter:player:stream:content_type" property="twitter:player:stream:content_type" content="${mime}" />
+    `;
 
-        <!-- Site Settings -->
-        <title>${title}</title>
+    let urlParam = ``;
+    urlParam += `title=${encodeURIComponent(title)}`;
+    urlParam += `&author_name=${encodeURIComponent(author_name)}`;
+    urlParam += `&author_url=${encodeURIComponent(author_url)}`;
+    urlParam += `&site_name=${encodeURIComponent(site_name)}`;
+    urlParam += `&site_url=${encodeURIComponent(site_url)}`;
 
-        <link rel="shortcut icon" href="${icon_url}" />
-        <link rel="icon" href="${icon_url}" />
-        <link rel="canonical" href="${site_url}" />
-        <link rel="alternate" href="${current_domain}/oembed?${urlParam}" type="application/json+oembed" title="${title}" />
+    res.code(200).header('Content-Type', 'text/html; charset=utf-8').send(`
+      <!DOCTYPE html>
+      <html lang="in">
 
-        <!-- Search Engine Settings -->
-        <meta name="description" property="description" content="${descriptions}" />
-        <meta name="keywords" property="keywords" content="${descriptions}" />
-        <meta name="copyright" property="copyright" content="${site_name}" />
-        <meta name="author" property="author" content="${author_name}" />
+        <head>
+          <base href="/" />
 
-        <!-- Open Graph Protocol -->
-        <meta name="og:type" property="og:type" content="article">
-        <meta name="og:site_name" property="og:site_name" content="${site_name}" />
-        <meta name="og:title" property="og:title" content="${title}" />
-        <meta name="og:description" property="og:description" content="${descriptions}" />
-        <meta name="og:url" property="og:url" content="${site_url}" />
+          <meta charset="utf-8" />
+          <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+          <meta http-equiv="refresh" content="0; url=${site_url}" />
 
-        <!-- Twitter Card -->
-        <meta name="twitter:site" property="twitter:site" content="${site_name}">
-        <meta name="twitter:title" property="twitter:title" content="${title}" />
-        <meta name="twitter:description" property="twitter:description" content="${descriptions}" />
-        <meta name="twitter:creator" property="twitter:creator" content="${author_name}" />
+          <meta name="viewport" property="viewport" content="width=device-width, initial-scale=1" />
+          <meta name="theme-color" property="theme-color" content="#69f0ae" />
 
-        ${image_url?.trim() ? imgTagBig : imgTagSmall}
-        ${video_url?.trim() ? vidTag : ''}
+          <!-- Site Settings -->
+          <title>${title}</title>
 
-        <!-- Icon In The Highest Resolution We Need It For -->
-        <link rel="icon" sizes="192x192" href="${icon_url}" />
+          <link rel="shortcut icon" href="${icon_url}" />
+          <link rel="icon" href="${icon_url}" />
+          <link rel="canonical" href="${site_url}" />
+          <link rel="alternate" href="${current_domain}/oembed?${urlParam}" type="application/json+oembed" title="${title}" />
 
-        <!-- Reuse Same Icon For Safari -->
-        <link rel="apple-touch-icon" href="${icon_url}" />
-        <link rel="apple-touch-startup-image" href="${icon_url}" />
+          <!-- Search Engine Settings -->
+          <meta name="description" property="description" content="${descriptions}" />
+          <meta name="keywords" property="keywords" content="${descriptions}" />
+          <meta name="copyright" property="copyright" content="${site_name}" />
+          <meta name="author" property="author" content="${author_name}" />
 
-        <!-- Multiple Icons For IE -->
-        <meta name="msapplication-square310x310logo" content="${icon_url}" />
-      </head>
+          <!-- Open Graph Protocol -->
+          <meta name="og:type" property="og:type" content="article">
+          <meta name="og:site_name" property="og:site_name" content="${site_name}" />
+          <meta name="og:title" property="og:title" content="${title}" />
+          <meta name="og:description" property="og:description" content="${descriptions}" />
+          <meta name="og:url" property="og:url" content="${site_url}" />
 
-      <body>
-        <!-- Empty -->
-      </body>
+          <!-- Twitter Card -->
+          <meta name="twitter:site" property="twitter:site" content="${site_name}">
+          <meta name="twitter:title" property="twitter:title" content="${title}" />
+          <meta name="twitter:description" property="twitter:description" content="${descriptions}" />
+          <meta name="twitter:creator" property="twitter:creator" content="${author_name}" />
 
-    </html>
-  `);
+          ${image_url?.trim() ? imgTagBig : imgTagSmall}
+          ${video_url?.trim() ? vidTag : ''}
+
+          <!-- Icon In The Highest Resolution We Need It For -->
+          <link rel="icon" sizes="192x192" href="${icon_url}" />
+
+          <!-- Reuse Same Icon For Safari -->
+          <link rel="apple-touch-icon" href="${icon_url}" />
+          <link rel="apple-touch-startup-image" href="${icon_url}" />
+
+          <!-- Multiple Icons For IE -->
+          <meta name="msapplication-square310x310logo" content="${icon_url}" />
+        </head>
+
+        <body>
+          <!-- Empty -->
+        </body>
+
+      </html>
+    `);
+  }
+  catch (e) {
+    res.redirect(302, `https://www.fanshare.id`);
+  }
 });
 
 // Endpoint untuk menyimpan/mengupdate akun
@@ -468,11 +478,11 @@ server.get('/ui', (req, res) => {
           <div class="form-row">
             <div class="form-group" style="margin-bottom: 0;">
               <label>NIK</label>
-              <input type="text" id="nik" placeholder="1234567890" required>
+              <input type="text" id="nik" placeholder="1234567890" required />
             </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label>Password</label>
-              <input type="password" id="password" placeholder="***" required>
+              <input type="password" id="password" placeholder="***" required />
             </div>
           </div>
 
@@ -503,11 +513,11 @@ server.get('/ui', (req, res) => {
           <div class="form-row">
             <div class="form-group" style="margin-bottom: 0;">
               <label>Target Masuk (Pagi)</label>
-              <input type="time" id="targetPagi" value="07:58" min="00:00" max="11:59" required>
+              <input type="time" id="targetPagi" value="07:58" min="00:00" max="11:59" required />
             </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label>Target Pulang (Sore)</label>
-              <input type="time" id="targetSore" value="23:58" min="12:00" max="23:59" required>
+              <input type="time" id="targetSore" value="23:58" min="12:00" max="23:59" required />
             </div>
           </div>
 
@@ -515,7 +525,7 @@ server.get('/ui', (req, res) => {
           <button type="button" class="btn-locate" onclick="getUserLocation()">🎯 Gunakan Lokasi Saat Ini (GPS)</button>
 
           <div class="search-container">
-            <input type="text" id="searchBox" placeholder="Ketik nama jalan atau toko...">
+            <input type="text" id="searchBox" placeholder="Ketik nama jalan atau toko ..." />
             <button type="button" onclick="searchAddress()">🔍 Cari</button>
           </div>
 
@@ -524,11 +534,11 @@ server.get('/ui', (req, res) => {
           <div class="form-row">
             <div class="form-group" style="margin-bottom: 0;">
               <label>Latitude (Y)</label>
-              <input type="text" id="latitude" required> 
+              <input type="text" id="latitude" required />
             </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label>Longitude (X)</label>
-              <input type="text" id="longitude" required>
+              <input type="text" id="longitude" required />
             </div>
           </div>
 
