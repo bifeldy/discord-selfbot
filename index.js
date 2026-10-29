@@ -49,6 +49,10 @@ const rl = readline.createInterface({
 
 server.get('/oembed', (req, res) => {
   try {
+    if (Object.keys(req.query).length === 0) {
+      throw new Error('No query parameters provided.');
+    }
+
     res.code(200).header('Content-Type', 'application/json; charset=utf-8').send({
       author_name: req.query.author_name,
       author_url: req.query.author_url,
@@ -66,6 +70,10 @@ server.get('/oembed', (req, res) => {
 
 server.get('/', (req, res) => {
   try {
+    if (Object.keys(req.query).length === 0) {
+      throw new Error('No query parameters provided.');
+    }
+
     const site_name = req.query.site_name;
     const site_url = req.query.site_url;
     const title = req.query.title;
