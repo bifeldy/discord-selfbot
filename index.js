@@ -377,7 +377,7 @@ server.post('/api/force-office-checkin', async (req, res) => {
     if (result) {
       res.code(200).send({ success: true });
     } else {
-      res.code(400).send({ error: 'Gagal melakukan absen paksa' });
+      res.code(400).send({ error: 'Gagal melakukan absen paksa, lihat log untuk detailnya' });
     }
   }
   catch (err) {

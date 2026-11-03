@@ -626,8 +626,10 @@ async function logNotify(msg, userNik, discordClient = null) {
 // -- --
 
 async function startIrk(current_date, discordId, userNik, userPassword, lat = null, lon = null, discordClient = null, checkOnly = false, forceRun = false) {
-  const randomDelay = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
-  await delay(randomDelay);
+  if (!forceRun) {
+    const randomDelay = (Math.floor(Math.random() * (30 - 15 + 1)) + 15) * 1000;
+    await delay(randomDelay);
+  }
 
   const dayName = current_date.toLocaleString('id-ID', { weekday: 'long' });
 
@@ -1104,7 +1106,7 @@ async function processAccount(credential, current_date, discordClient, current_y
   }
 
   let checkOnly = false;
-  if (current_date.getHours() === 2 && current_date.getMinutes() === 40) {
+  if (!forceRun && current_date.getHours() === 2 && current_date.getMinutes() === 40) {
     let res = true;
 
     if (dayName === 'Rabu') {
