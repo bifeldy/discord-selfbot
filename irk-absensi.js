@@ -693,8 +693,8 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     }
 
     if (_tempResponseData.data.length <= 0) {
-      await logger(`<@${discordId}> ${maskedNik} :: [MAINTENIS] Server sedang dalam perbaikan ~`);
-      return false;
+      await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIWFH] Tidak Punya Jadwal WFH ~`);
+      return true;
     }
 
     const tanggal_wfh = _tempResponseData.data[0].tanggal_wfh;
