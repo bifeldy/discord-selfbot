@@ -695,7 +695,7 @@ async function startIrk(current_date, discordId, userNik, userPassword, lat = nu
     }
 
     if (_tempResponseData.data.length <= 0) {
-      await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIWFH] Tidak Punya Jadwal WFH ~`);
+      await logger(`<@${discordId}> ${maskedNik} :: [PRESENSIWFH] Skip, Kosong - Tidak Punya Jadwal WFH ~`);
       return true;
     }
 
